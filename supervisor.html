@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة المشرف - مجمع الإمام البخاري</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1b4332;
+            --secondary: #2d6a4f;
+            --accent: #d8f3dc;
+            --warning: #ffb703;
+            --danger: #e63946;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
+        body { background-color: #f0f2f5; color: var(--dark); min-height: 100vh; display: flex; flex-direction: column; }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .logo-area h1 { font-size: 1.3rem; display: flex; align-items: center; gap: 10px; }
+        .user-panel { display: flex; align-items: center; gap: 15px; }
+
+        .container { max-width: 1150px; margin: 25px auto; padding: 0 15px; flex: 1; width: 100%; }
+
+        .btn {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-danger { background-color: var(--danger); }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 10px;
+            font-size: 1.15rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group { margin-bottom: 15px; text-align: right; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--dark); font-size: 0.95rem; }
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background-color: #fff;
+        }
+        .form-control:focus { border-color: var(--secondary); outline: none; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media(max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        .stats-box {
+            background: var(--accent);
+            color: var(--primary);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 15px;
+        }
+
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .data-table th, .data-table td { padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6; font-size: 0.9rem; }
+        .data-table th { background-color: #f1f3f5; color: var(--primary); }
+    </style>
+
+    <!-- ربط ملف التخزين المركزي السحابي -->
+    <script src="storage.js"></script>
+</head>
+<body>
+
+    <header>
+        <div class="logo-area">
+            <h1><i class="fa-solid fa-mosque"></i> مجمع الإمام البخاري - بوابة المشرف</h1>
+        </div>
+        <div class="user-panel">
+            <span id="header-user-name" style="font-weight: 700;">المشرف</span>
+            <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="logout()">
+                <i class="fa-solid fa-right-from-bracket"></i> خروج
+            </button>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- ملخص سريع للحلقات والطلاب -->
+        <div class="grid-2">
+            <div class="stats-box" id="supervisor-rings-count">عدد الحلقات المسجلة: 0</div>
+            <div class="stats-box" id="supervisor-students-count">إجمالي الطلاب المسجلين: 0</div>
+        </div>
+
+        <!-- متابعة الحلقات -->
+        <div class="card">
+            <h3><i class="fa-solid fa-building-columns"></i> متابعة الحلقات والمعلمين</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>اسم الحلقة</th>
+                        <th>المعلم المسؤول</th>
+                        <th>عدد الطلاب</th>
+                        <th>نسبة الحضور</th>
+                    </tr>
+                </thead>
+                <tbody id="supervisor-rings-body">
+                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد حلقات مضافة حالياً.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- عرض طلاب الحلقة المختارة -->
+        <div class="card">
+            <h3><i class="fa-solid fa-users"></i> طلاب الحلقة</h3>
+            <div class="form-group">
+                <label>اختر الحلقة</label>
+                <select id="supervisor-ring-select" class="form-control" onchange="loadSupervisorStudents()">
+                    <option value="">-- اختر الحلقة --</option>
+                </select>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>اسم الطالب</th>
+                        <th>المرحلة</th>
+                        <th>الحالة</th>
+                        <th>النقاط</th>
+                    </tr>
+                </thead>
+                <tbody id="supervisor-students-body">
+                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">اختر الحلقة لعرض الطلاب.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- تسجيل ملاحظة إشرافية ومزامنتها -->
+        <div class="card">
+            <h3><i class="fa-solid fa-clipboard-check"></i> تسجيل ملاحظة إشرافية</h3>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>الحلقة المستهدفة</label>
+                    <select id="supervisor-note-ring" class="form-control">
+                        <option value="">-- اختر الحلقة --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>اسم المشرف</label>
+                    <input type="text" id="supervisor-actor-name" class="form-control" placeholder="اسم المشرف">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>نص الملاحظة الإشرافية</label>
+                <textarea id="supervisor-note-text" rows="3" class="form-control" placeholder="اكتب ملاحظتك الإشرافية على الحلقة أو الأداء..."></textarea>
+            </div>
+            <button type="button" class="btn" onclick="saveSupervisorNote()">
+                <i class="fa-solid fa-check"></i> حفظ ومزامنة الملاحظة
+            </button>
+
+            <table class="data-table" style="margin-top: 20px;">
+                <thead>
+                    <tr>
+                        <th>المشرف</th>
+                        <th>الحلقة</th>
+                        <th>الملاحظة</th>
+                        <th>الوقت</th>
+                    </tr>
+                </thead>
+                <tbody id="supervisor-notes-body">
+                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد ملاحظات إشرافية مسجلة بعد.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        function escapeHtml(text) {
+            return String(text || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function getActiveSupervisorName() {
+            const inputEl = document.getElementById('supervisor-actor-name');
+            if (inputEl && inputEl.value.trim()) {
+                return inputEl.value.trim();
+            }
+            return localStorage.getItem('current_user_name') || 'المشرف';
+        }
+
+        window.onload = function() {
+            const savedName = localStorage.getItem('current_user_name') || 'المشرف';
+            document.getElementById('header-user-name').innerText = savedName;
+            const actorInput = document.getElementById('supervisor-actor-name');
+            if (actorInput && savedName !== 'المشرف') {
+                actorInput.value = savedName;
+            }
+            loadSupervisorData();
+            renderSupervisorNotes();
+        };
+
+        function loadSupervisorData() {
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const ringsBody = document.getElementById('supervisor-rings-body');
+            const ringSelect = document.getElementById('supervisor-ring-select');
+            const noteRingSelect = document.getElementById('supervisor-note-ring');
+
+            let totalStudents = 0;
+            rings.forEach(r => {
+                totalStudents += Array.isArray(r.studentsData) ? r.studentsData.length : 0;
+            });
+
+            document.getElementById('supervisor-rings-count').innerText = `عدد الحلقات المسجلة: ${rings.length}`;
+            document.getElementById('supervisor-students-count').innerText = `إجمالي الطلاب المسجلين: ${totalStudents}`;
+
+            if (ringSelect) ringSelect.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+            if (noteRingSelect) noteRingSelect.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+
+            if (rings.length === 0) {
+                ringsBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد حلقات مضافة حالياً.</td></tr>`;
+                return;
+            }
+
+            ringsBody.innerHTML = rings.map(r => {
+                const count = Array.isArray(r.studentsData) ? r.studentsData.length : 0;
+                return `
+                    <tr>
+                        <td><strong>${escapeHtml(r.name)}</strong></td>
+                        <td>${escapeHtml(r.teacher || '-')}</td>
+                        <td>${count} طالباً</td>
+                        <td>${escapeHtml(r.attendanceRate || '95%')}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            rings.forEach(r => {
+                if (!r || !r.name) return;
+                const opt1 = document.createElement('option');
+                opt1.value = r.name;
+                opt1.textContent = r.name;
+                if (ringSelect) ringSelect.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = r.name;
+                opt2.textContent = r.name;
+                if (noteRingSelect) noteRingSelect.appendChild(opt2);
+            });
+        }
+
+        function loadSupervisorStudents() {
+            const ringName = document.getElementById('supervisor-ring-select').value;
+            const tbody = document.getElementById('supervisor-students-body');
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const ring = rings.find(r => r.name === ringName);
+
+            if (!ring || !Array.isArray(ring.studentsData) || ring.studentsData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد بيانات طلاب في هذه الحلقة.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = ring.studentsData.map(st => `
+                <tr>
+                    <td><strong>${escapeHtml(st.name)}</strong></td>
+                    <td>${escapeHtml(st.grade || '-')}</td>
+                    <td>${escapeHtml(st.status || 'أخضر')}</td>
+                    <td><strong>${Number(st.points || 0)}</strong></td>
+                </tr>
+            `).join('');
+        }
+
+        function saveSupervisorNote() {
+            const ringName = document.getElementById('supervisor-note-ring').value.trim();
+            const supervisorName = getActiveSupervisorName();
+            const noteText = document.getElementById('supervisor-note-text').value.trim();
+
+            if (!noteText) {
+                alert('يرجى كتابة نص الملاحظة الإشرافية.');
+                return;
+            }
+
+            const timeStr = new Date().toLocaleString('ar-SA');
+            const notes = JSON.parse(localStorage.getItem('mamma_supervisor_notes') || '[]');
+            notes.unshift({
+                supervisor: supervisorName,
+                ring: ringName || 'عام',
+                text: noteText,
+                time: timeStr
+            });
+            localStorage.setItem('mamma_supervisor_notes', JSON.stringify(notes.slice(0, 500)));
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'ملاحظة مشرف',
+                    supervisorName,
+                    `الحلقة: ${ringName || 'عام'} | الملاحظة: ${noteText}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.MESSAGES : undefined }
+                );
+            }
+
+            document.getElementById('supervisor-note-text').value = '';
+            renderSupervisorNotes();
+            alert('تم حفظ الملاحظة الإشرافية ومزامنتها سحابياً بنجاح.');
+        }
+
+        function renderSupervisorNotes() {
+            const notes = JSON.parse(localStorage.getItem('mamma_supervisor_notes') || '[]');
+            const tbody = document.getElementById('supervisor-notes-body');
+            if (!tbody) return;
+
+            if (notes.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد ملاحظات إشرافية مسجلة بعد.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = notes.map(n => `
+                <tr>
+                    <td><strong>${escapeHtml(n.supervisor)}</strong></td>
+                    <td>${escapeHtml(n.ring)}</td>
+                    <td>${escapeHtml(n.text)}</td>
+                    <td><small style="color: var(--gray);">${escapeHtml(n.time)}</small></td>
+                </tr>
+            `).join('');
+        }
+
+        function logout() {
+            localStorage.removeItem('current_user_role');
+            localStorage.removeItem('current_user_name');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

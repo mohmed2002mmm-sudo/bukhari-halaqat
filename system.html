@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>النظام الإداري الشامل - مجمع الإمام البخاري</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1b4332;
+            --secondary: #2d6a4f;
+            --accent: #d8f3dc;
+            --warning: #ffb703;
+            --danger: #e63946;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
+        body { background-color: #f0f2f5; color: var(--dark); min-height: 100vh; display: flex; flex-direction: column; }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .logo-area h1 { font-size: 1.3rem; display: flex; align-items: center; gap: 10px; }
+        .user-panel { display: flex; align-items: center; gap: 15px; }
+
+        .container { max-width: 1200px; margin: 25px auto; padding: 0 15px; flex: 1; width: 100%; }
+
+        .btn {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-danger { background-color: var(--danger); }
+        .btn-warning { background-color: var(--warning); color: #000; }
+        .btn-info { background-color: #0077b6; color: white; }
+        .btn-success { background-color: #2a9d8f; color: white; }
+        .btn-disabled { background-color: #adb5bd !important; cursor: not-allowed !important; pointer-events: none; opacity: 0.55; }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 10px;
+            font-size: 1.15rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 10px;
+        }
+        .card-header-flex h3 {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .form-group { margin-bottom: 15px; text-align: right; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--dark); font-size: 0.95rem; }
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+        .form-control:focus { border-color: var(--secondary); outline: none; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media(max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        .stats-box {
+            background: var(--accent);
+            color: var(--primary);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 15px;
+        }
+
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .data-table th, .data-table td { padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6; font-size: 0.9rem; }
+        .data-table th { background-color: #f1f3f5; color: var(--primary); }
+
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; display: inline-block; }
+        .badge-yellow { background-color: var(--warning); color: #000; }
+        .badge-green { background-color: var(--secondary); color: white; }
+        .badge-gray { background-color: var(--gray); color: white; }
+        .badge-red { background-color: var(--danger); color: white; }
+
+        .view-section { display: none; }
+    </style>
+
+    <!-- ربط ملف التخزين المركزي السحابي -->
+    <script src="storage.js"></script>
+</head>
+<body>
+
+    <header>
+        <div class="logo-area">
+            <h1><i class="fa-solid fa-mosque"></i> مجمع الإمام البخاري - النظام الإداري</h1>
+        </div>
+        <div class="user-panel">
+            <span id="header-user-name" style="font-weight: 700;">جاري التحقق...</span>
+            <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> خروج</button>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <div id="section-manager" class="view-section">
+            <!-- نسب الحضور والغياب للطلاب والمعلمين والموظفين -->
+            <div class="grid-2">
+                <div class="stats-box" id="students-attendance-box">نسبة حضور الطلاب: 0% | نسبة غياب الطلاب: 0%</div>
+                <div class="stats-box" id="employees-attendance-box">نسبة حضور المعلمين والموظفين: 0% | حضور: 0 | غياب: 0</div>
+            </div>
+
+            <!-- تسجيل الحضور والانصراف للمدير العام -->
+            <div class="card">
+                <h3><i class="fa-solid fa-fingerprint"></i> تسجيل الحضور والانصراف للمدير العام</h3>
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <button type="button" id="manager-start-btn" class="btn" onclick="markManagerShift('start')">
+                        <i class="fa-solid fa-clock"></i> تسجيل بداية الدوام
+                    </button>
+                    <span id="manager-start-time" style="font-weight: 700; color: var(--secondary);"></span>
+
+                    <button type="button" id="manager-end-btn" class="btn btn-warning" onclick="markManagerShift('end')" style="margin-right: auto;">
+                        <i class="fa-solid fa-flag-checkered"></i> تسجيل نهاية الدوام
+                    </button>
+                    <span id="manager-end-time" style="font-weight: 700; color: var(--danger);"></span>
+                </div>
+            </div>
+
+            <!-- عدد مرات حضور وغياب الموظفين والمعلمين ونسبتهم -->
+            <div class="card">
+                <div class="card-header-flex">
+                    <h3><i class="fa-solid fa-user-check"></i> عدد حضور وغياب الموظفين والمعلمين ونسبتهم</h3>
+                    <button type="button" class="btn btn-warning" onclick="startNewMonthForStaff()">
+                        <i class="fa-solid fa-calendar-plus"></i> بداية شهر جديد
+                    </button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>اسم الموظف / المعلم</th>
+                            <th>الدور</th>
+                            <th>عدد مرات الحضور</th>
+                            <th>عدد مرات الغياب</th>
+                            <th>نسبة الحضور</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employees-attendance-counts-body">
+                        <tr><td colspan="5" style="text-align: center; color: var(--gray);">لا توجد بيانات حضور أو غياب حالياً.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- الرسائل المرسلة من المعلمين واعتمادها -->
+            <div class="card">
+                <h3><i class="fa-solid fa-envelope-open-text"></i> الرسائل المرسلة من المعلمين</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>اسم المعلم</th>
+                            <th>نص الرسالة</th>
+                            <th>الوقت / التاريخ</th>
+                            <th>اعتماد الرسالة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teachers-messages-manager-body">
+                        <tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد رسائل مرسلة من المعلمين حالياً.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- جدول إدارة الموظفين والمعلمين وتعديل بياناتهم -->
+            <div class="card">
+                <h3><i class="fa-solid fa-users-gear"></i> إدارة الموظفين والمعلمين (إضافة وتعديل)</h3>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>الاسم الشخصي للموظف / المعلم</label>
+                        <input type="text" id="emp-fullname" class="form-control" placeholder="الاسم الكامل">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم المستخدم (للدخول)</label>
+                        <input type="text" id="emp-username" class="form-control" placeholder="اسم المستخدم بالإنجليزية">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>كلمة المرور</label>
+                        <input type="password" id="emp-password" class="form-control" placeholder="كلمة المرور">
+                    </div>
+                    <div class="form-group">
+                        <label>الصلاحية / الدور</label>
+                        <select id="emp-role" class="form-control">
+                            <option value="معلم">معلم</option>
+                            <option value="إداري">إداري</option>
+                            <option value="مشرف حلقة">مشرف حلقة</option>
+                            <option value="مدير عام">مدير عام</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="button" class="btn" onclick="addNewEmployee()"><i class="fa-solid fa-user-plus"></i> حفظ وإتاحة الدخول للموظف</button>
+
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #dee2e6;">
+
+                <h4 style="color: var(--primary); margin-bottom: 10px; font-size: 1rem;">قائمة الموظفين المسجلين في النظام:</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>الاسم الشخصي</th>
+                            <th>اسم المستخدم</th>
+                            <th>كلمة المرور</th>
+                            <th>الحالة / الدور</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employees-table-body"></tbody>
+                </table>
+            </div>
+
+            <!-- إدارة حلقات المجمع وإضافة وتعديل بياناتها -->
+            <div class="card">
+                <h3><i class="fa-solid fa-building-columns"></i> إدارة حلقات المجمع (إضافة وتعديل)</h3>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>اسم الحلقة الجديدة</label>
+                        <input type="text" id="ring-name-input" class="form-control" placeholder="مثال: حلقة الإمام عاصم">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم المعلم المسؤول</label>
+                        <input type="text" id="ring-teacher-input" class="form-control" placeholder="اسم المعلم">
+                    </div>
+                </div>
+                <button type="button" class="btn" onclick="addNewRing()"><i class="fa-solid fa-plus"></i> إضافة الحلقة</button>
+
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #dee2e6;">
+
+                <h4 style="color: var(--primary); margin-bottom: 10px; font-size: 1rem;">قائمة الحلقات في المجمع:</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>اسم الحلقة</th>
+                            <th>المعلم المسؤول</th>
+                            <th>الخيارات والإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rings-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function escapeHtml(text) {
+            return String(text || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function getLocalDateKey() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getCurrentMonthKey() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            return `${year}-${month}`;
+        }
+
+        function getActiveManagerName() {
+            const headerName = document.getElementById('header-user-name').innerText.trim();
+            return localStorage.getItem('current_user_name') || headerName || 'المدير العام';
+        }
+
+        function getManagerShiftKeys() {
+            const managerName = getActiveManagerName();
+            const todayKey = getLocalDateKey();
+            return {
+                startKey: `manager_start_time_${managerName}_${todayKey}`,
+                endKey: `manager_end_time_${managerName}_${todayKey}`
+            };
+        }
+
+        window.onload = function() {
+            const currentName = getActiveManagerName();
+            document.getElementById('header-user-name').innerText = currentName;
+            document.getElementById('section-manager').style.display = 'block';
+            refreshManagerView();
+
+            setInterval(checkManagerShift, 60000);
+        };
+
+        function refreshManagerView() {
+            checkManagerShift();
+            loadEmployeesTable();
+            loadRingsTable();
+            updateStudentsAttendanceStats();
+            updateEmployeesAttendanceStatsAndTable();
+            loadTeachersMessagesForManager();
+        }
+
+        function checkManagerShift() {
+            const { startKey, endKey } = getManagerShiftKeys();
+
+            const startBtn = document.getElementById('manager-start-btn');
+            const endBtn = document.getElementById('manager-end-btn');
+            const startTimeEl = document.getElementById('manager-start-time');
+            const endTimeEl = document.getElementById('manager-end-time');
+
+            startBtn.classList.remove('btn-disabled');
+            startBtn.disabled = false;
+            startTimeEl.innerText = '';
+
+            endBtn.classList.remove('btn-disabled');
+            endBtn.disabled = false;
+            endTimeEl.innerText = '';
+
+            const savedStart = localStorage.getItem(startKey);
+            const savedEnd = localStorage.getItem(endKey);
+
+            if (savedStart) {
+                startBtn.classList.add('btn-disabled');
+                startBtn.disabled = true;
+                startTimeEl.innerText = `بداية الدوام: ${savedStart}`;
+            }
+
+            if (savedEnd) {
+                endBtn.classList.add('btn-disabled');
+                endBtn.disabled = true;
+                endTimeEl.innerText = `نهاية الدوام: ${savedEnd}`;
+            }
+        }
+
+        function markManagerShift(type) {
+            const nowTime = new Date().toLocaleTimeString('ar-SA');
+            const todayKey = getLocalDateKey();
+            const managerName = getActiveManagerName();
+            const { startKey, endKey } = getManagerShiftKeys();
+
+            if (type === 'start') {
+                const btn = document.getElementById('manager-start-btn');
+                btn.classList.add('btn-disabled');
+                btn.disabled = true;
+                document.getElementById('manager-start-time').innerText = `بداية الدوام: ${nowTime}`;
+                localStorage.setItem(startKey, nowTime);
+
+                const logs = JSON.parse(localStorage.getItem('mamma_employees_attendance') || '[]');
+                logs.unshift({
+                    name: managerName,
+                    role: 'مدير عام',
+                    status: 'حاضر',
+                    date: todayKey,
+                    month: getCurrentMonthKey(),
+                    time: nowTime
+                });
+                localStorage.setItem('mamma_employees_attendance', JSON.stringify(logs.slice(0, 1000)));
+
+                updateEmployeesAttendanceStatsAndTable();
+
+                if (typeof syncToCloud === 'function') {
+                    syncToCloud(
+                        'تسجيل دوام مدير عام - بداية',
+                        managerName,
+                        `وقت الحضور: ${nowTime} | التاريخ: ${todayKey}`,
+                        { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAFF_ATTENDANCE : undefined }
+                    );
+                }
+                alert('تم تسجيل بداية الدوام وحفظه بنجاح.');
+            } else {
+                const btn = document.getElementById('manager-end-btn');
+                btn.classList.add('btn-disabled');
+                btn.disabled = true;
+                document.getElementById('manager-end-time').innerText = `نهاية الدوام: ${nowTime}`;
+                localStorage.setItem(endKey, nowTime);
+
+                if (typeof syncToCloud === 'function') {
+                    syncToCloud(
+                        'تسجيل دوام مدير عام - نهاية',
+                        managerName,
+                        `وقت الانصراف: ${nowTime} | التاريخ: ${todayKey}`,
+                        { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAFF_ATTENDANCE : undefined }
+                    );
+                }
+                alert('تم تسجيل نهاية الدوام وحفظه بنجاح.');
+            }
+        }
+
+        function startNewMonthForStaff() {
+            const monthKey = getCurrentMonthKey();
+            if (!confirm(`هل أنت متأكد من إعلان (بداية شهر جديد: ${monthKey}) وتصفير سجلات حضور وغياب المعلمين والموظفين؟`)) {
+                return;
+            }
+
+            localStorage.setItem('mamma_employees_attendance', JSON.stringify([]));
+            localStorage.setItem('mamma_employees_absence', JSON.stringify([]));
+            localStorage.setItem('mamma_staff_attendance', JSON.stringify([]));
+            localStorage.setItem('mamma_staff_absence', JSON.stringify([]));
+            localStorage.setItem('mamma_current_month_key', monthKey);
+
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (!k) continue;
+                if (
+                    k.startsWith('manager_present_') ||
+                    k.startsWith('manager_absent_') ||
+                    k.startsWith('manager_start_time_') ||
+                    k.startsWith('manager_end_time_') ||
+                    k.startsWith('admin_start_time_') ||
+                    k.startsWith('admin_end_time_')
+                ) {
+                    keysToRemove.push(k);
+                }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+
+            checkManagerShift();
+            updateEmployeesAttendanceStatsAndTable();
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'بداية شهر جديد - تصفير غياب وحضور الموظفين والمعلمين',
+                    getActiveManagerName(),
+                    `الشهر الجديد: ${monthKey} | تم تصفير عدادات حضور وغياب الكادر`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAFF_ATTENDANCE : undefined }
+                );
+            }
+
+            alert(`تم بدء الشهر الجديد (${monthKey}) وتصفير حضور وغياب المعلمين والموظفين بنجاح.`);
+        }
+
+        function getEmployees() { return JSON.parse(localStorage.getItem('mamma_employees') || '[]'); }
+        function saveEmployees(emps) { localStorage.setItem('mamma_employees', JSON.stringify(emps)); }
+
+        function getRings() { return JSON.parse(localStorage.getItem('mamma_rings') || '[]'); }
+        function saveRings(rings) { localStorage.setItem('mamma_rings', JSON.stringify(rings)); }
+
+        function updateStudentsAttendanceStats() {
+            const box = document.getElementById('students-attendance-box');
+            if (!box) return;
+
+            const rings = getRings();
+            const studentAttendanceLogs = JSON.parse(localStorage.getItem('mamma_student_attendance') || localStorage.getItem('mamma_attendance_logs') || '[]');
+
+            let presentCount = 0;
+            let absentCount = 0;
+
+            if (studentAttendanceLogs.length > 0) {
+                studentAttendanceLogs.forEach(item => {
+                    const st = String(item.status || item.state || '').trim();
+                    if (st === 'غائب' || st === 'غياب') absentCount++;
+                    else presentCount++;
+                });
+            } else {
+                rings.forEach(ring => {
+                    (ring.studentsData || []).forEach(st => {
+                        const p = Number(st.presentDays || 0);
+                        const a = Number(st.absentDays || 0);
+                        if (p > 0 || a > 0) {
+                            presentCount += p;
+                            absentCount += a;
+                        } else {
+                            const statusVal = String(st.attendanceStatus || '').trim();
+                            if (statusVal === 'غائب' || statusVal === 'غياب') absentCount++;
+                            else if (statusVal === 'حاضر' || statusVal === 'متأخر') presentCount++;
+                        }
+                    });
+                });
+            }
+
+            const total = presentCount + absentCount;
+            if (total === 0) {
+                box.innerHTML = 'نسبة حضور الطلاب: 0% | نسبة غياب الطلاب: 0%';
+                return;
+            }
+
+            const presentPct = Math.round((presentCount / total) * 100);
+            const absentPct = Math.round((absentCount / total) * 100);
+            box.innerHTML = `نسبة حضور الطلاب: <strong>${presentPct}%</strong> (${presentCount}) | نسبة غياب الطلاب: <strong>${absentPct}%</strong> (${absentCount})`;
+        }
+
+        function updateEmployeesAttendanceStatsAndTable() {
+            const summaryBox = document.getElementById('employees-attendance-box');
+            const tbody = document.getElementById('employees-attendance-counts-body');
+
+            const emps = getEmployees();
+            const empLogs = JSON.parse(localStorage.getItem('mamma_employees_attendance') || localStorage.getItem('mamma_staff_attendance') || '[]');
+            const empAbsences = JSON.parse(localStorage.getItem('mamma_employees_absence') || localStorage.getItem('mamma_staff_absence') || '[]');
+
+            const map = {};
+            emps.forEach(emp => {
+                const name = String(emp.fullname || emp.name || emp.username || '').trim();
+                if (name) {
+                    map[name] = {
+                        name,
+                        role: String(emp.role || 'موظف').trim(),
+                        present: 0,
+                        absent: 0
+                    };
+                }
+            });
+
+            let totalPresent = 0;
+            let totalAbsent = 0;
+
+            empLogs.forEach(log => {
+                const name = String(log.name || log.fullname || log.employee || log.teacher || '').trim();
+                const role = String(log.role || 'موظف').trim();
+                const status = String(log.status || log.state || 'حاضر').trim();
+                const isAbsent = status === 'غائب' || status === 'غياب';
+
+                if (!map[name] && name) {
+                    map[name] = { name, role, present: 0, absent: 0 };
+                }
+
+                if (isAbsent) {
+                    totalAbsent++;
+                    if (name && map[name]) map[name].absent++;
+                } else {
+                    totalPresent++;
+                    if (name && map[name]) map[name].present++;
+                }
+            });
+
+            empAbsences.forEach(abs => {
+                const name = String(abs.name || abs.fullname || abs.employee || abs.teacher || '').trim();
+                const role = String(abs.role || 'موظف').trim();
+                if (!map[name] && name) {
+                    map[name] = { name, role, present: 0, absent: 0 };
+                }
+                totalAbsent++;
+                if (name && map[name]) map[name].absent++;
+            });
+
+            const sum = totalPresent + totalAbsent;
+            const presentPct = sum > 0 ? Math.round((totalPresent / sum) * 100) : 0;
+            const absentPct = sum > 0 ? Math.round((totalAbsent / sum) * 100) : 0;
+
+            if (summaryBox) {
+                summaryBox.innerHTML = `نسبة حضور المعلمين والموظفين: <strong>${presentPct}%</strong> | حضور: <strong>${totalPresent}</strong> | غياب: <strong>${totalAbsent}</strong> (${absentPct}%)`;
+            }
+
+            if (tbody) {
+                const list = Object.values(map);
+                if (list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--gray);">لا توجد بيانات حضور أو غياب حالياً.</td></tr>`;
+                } else {
+                    tbody.innerHTML = list.map(item => {
+                        const rowTotal = item.present + item.absent;
+                        const pRate = rowTotal > 0 ? Math.round((item.present / rowTotal) * 100) : 0;
+                        return `
+                            <tr>
+                                <td><strong>${escapeHtml(item.name)}</strong></td>
+                                <td><span class="badge badge-yellow">${escapeHtml(item.role)}</span></td>
+                                <td><span class="badge badge-green">${item.present}</span></td>
+                                <td><span class="badge badge-red">${item.absent}</span></td>
+                                <td><strong>${pRate}%</strong></td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            }
+        }
+
+        function getTeacherMessagesList() {
+            const fromTeachersKey = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
+            if (fromTeachersKey.length > 0) {
+                return { storageKey: 'teachers_messages', items: fromTeachersKey };
+            }
+            const fromManagerKey = JSON.parse(localStorage.getItem('manager_messages') || '[]');
+            return { storageKey: 'manager_messages', items: fromManagerKey };
+        }
+
+        function loadTeachersMessagesForManager() {
+            const tbody = document.getElementById('teachers-messages-manager-body');
+            if (!tbody) return;
+
+            const { items } = getTeacherMessagesList();
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد رسائل مرسلة من المعلمين حالياً.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = items.map((msg, index) => {
+                const teacherName = msg.teacher || msg.sender || msg.name || 'معلم';
+                const text = msg.text || msg.message || '';
+                const time = msg.time || msg.date || '-';
+                return `
+                    <tr>
+                        <td><strong>${escapeHtml(teacherName)}</strong></td>
+                        <td>${escapeHtml(text)}</td>
+                        <td><small style="color: var(--gray);">${escapeHtml(time)}</small></td>
+                        <td>
+                            <button type="button" class="btn btn-success" style="padding: 5px 12px; font-size: 0.85rem;" onclick="approveTeacherMessage(${index})">
+                                <i class="fa-solid fa-check"></i> اعتماد
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function approveTeacherMessage(index) {
+            const { storageKey, items } = getTeacherMessagesList();
+            const target = items[index];
+            if (!target) return;
+
+            const teacherName = target.teacher || target.sender || target.name || 'معلم';
+            const text = target.text || target.message || '';
+
+            items.splice(index, 1);
+            localStorage.setItem(storageKey, JSON.stringify(items));
+
+            const managerName = getActiveManagerName();
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'اعتماد رسالة معلم',
+                    managerName,
+                    `المعلم: ${teacherName} | الرسالة: ${text}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.MESSAGES : undefined }
+                );
+            }
+
+            loadTeachersMessagesForManager();
+            alert(`تم اعتماد رسالة المعلم (${teacherName}) بنجاح.`);
+        }
+
+        function addNewEmployee() {
+            const fullname = document.getElementById('emp-fullname').value.trim();
+            const username = document.getElementById('emp-username').value.trim();
+            const password = document.getElementById('emp-password').value.trim();
+            const role = document.getElementById('emp-role').value;
+
+            if (!fullname || !username || !password) {
+                alert('يرجى تعبئة جميع حقول الموظف.');
+                return;
+            }
+
+            const emps = getEmployees();
+            const exists = emps.some(e =>
+                String(e.username || '').trim().toLowerCase() === username.toLowerCase()
+            );
+            if (exists) {
+                alert(`اسم المستخدم (${username}) مسجل مسبقاً. اختر اسم مستخدم مختلف أو عدّل الموظف الحالي.`);
+                return;
+            }
+
+            emps.push({ fullname, username, password, role, status: 'نشط' });
+            saveEmployees(emps);
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'إضافة موظف',
+                    getActiveManagerName(),
+                    `الاسم: ${fullname} | الدور: ${role}`,
+                    {
+                        sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.EMPLOYEES : 'employees',
+                        data: { fullname, username, password, role, status: 'نشط' }
+                    }
+                );
+            }
+
+            alert(`تمت إضافة (${fullname}) بنجاح.`);
+            document.getElementById('emp-fullname').value = '';
+            document.getElementById('emp-username').value = '';
+            document.getElementById('emp-password').value = '';
+            refreshManagerView();
+        }
+
+        function loadEmployeesTable() {
+            const tbody = document.getElementById('employees-table-body');
+            const emps = getEmployees();
+
+            if (emps.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--gray);">لا يوجد موظفون مضافون حتى الآن.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            emps.forEach((emp, index) => {
+                const statusBadge = emp.status === 'مجمد'
+                    ? '<span class="badge badge-gray">مجمد</span>'
+                    : '<span class="badge badge-green">نشط</span>';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(emp.fullname)}</strong></td>
+                    <td>${escapeHtml(emp.username)}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="pass-text-${index}" style="letter-spacing: 2px;">••••••</span>
+                            <button type="button" class="btn" style="padding: 3px 8px; font-size: 0.75rem; background-color: var(--gray);" onclick="toggleTablePassword(${index})">
+                                <i class="fa-solid fa-eye" id="eye-btn-${index}"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td><span class="badge badge-yellow">${escapeHtml(emp.role)}</span> ${statusBadge}</td>
+                    <td>
+                        <button type="button" class="btn" style="padding: 4px 8px; font-size: 0.75rem;" onclick="editEmployee(${index})"><i class="fa-solid fa-pen-to-square"></i> تعديل</button>
+                        <button type="button" class="btn btn-info" style="padding: 4px 8px; font-size: 0.75rem;" onclick="changeEmpRole(${index})">الصلاحية</button>
+                        <button type="button" class="btn btn-warning" style="padding: 4px 8px; font-size: 0.75rem;" onclick="toggleFreezeEmp(${index})">${emp.status === 'مجمد' ? 'تنشيط' : 'تجميد'}</button>
+                        <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="deleteEmp(${index})">حذف</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function editEmployee(index) {
+            const emps = getEmployees();
+            const emp = emps[index];
+            if (!emp) return;
+
+            const oldFullname = emp.fullname;
+            const newFullname = prompt('تعديل الاسم الشخصي للموظف / المعلم:', emp.fullname);
+            if (newFullname === null) return;
+
+            const newUsername = prompt('تعديل اسم المستخدم:', emp.username);
+            if (newUsername === null) return;
+
+            const newPassword = prompt('تعديل كلمة المرور:', emp.password);
+            if (newPassword === null) return;
+
+            const newRole = prompt('تعديل الصلاحية / الدور (معلم، إداري، مشرف حلقة، مدير عام):', emp.role);
+            if (newRole === null) return;
+
+            emp.fullname = newFullname.trim() || emp.fullname;
+            emp.username = newUsername.trim() || emp.username;
+            emp.password = newPassword.trim() || emp.password;
+            emp.role = newRole.trim() || emp.role;
+
+            emps[index] = emp;
+            saveEmployees(emps);
+
+            if (oldFullname && emp.fullname !== oldFullname) {
+                const rings = getRings();
+                rings.forEach(r => {
+                    if (r.teacher === oldFullname) r.teacher = emp.fullname;
+                });
+                saveRings(rings);
+            }
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'تعديل بيانات موظف',
+                    getActiveManagerName(),
+                    `الاسم: ${emp.fullname} | الدور: ${emp.role}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.EMPLOYEES : undefined }
+                );
+            }
+
+            refreshManagerView();
+            alert('تم تعديل بيانات الموظف بنجاح.');
+        }
+
+        function toggleTablePassword(index) {
+            const emps = getEmployees();
+            const emp = emps[index];
+            if (!emp) return;
+
+            const passSpan = document.getElementById(`pass-text-${index}`);
+            const eyeBtn = document.getElementById(`eye-btn-${index}`);
+            if (!passSpan || !eyeBtn) return;
+
+            if (passSpan.innerText === '••••••') {
+                passSpan.textContent = String(emp.password || '');
+                passSpan.style.letterSpacing = 'normal';
+                eyeBtn.classList.remove('fa-eye');
+                eyeBtn.classList.add('fa-eye-slash');
+            } else {
+                passSpan.textContent = '••••••';
+                passSpan.style.letterSpacing = '2px';
+                eyeBtn.classList.remove('fa-eye-slash');
+                eyeBtn.classList.add('fa-eye');
+            }
+        }
+
+        function changeEmpRole(index) {
+            const emps = getEmployees();
+            if (!emps[index]) return;
+            const newRole = prompt('اختر الصلاحية الجديدة (معلم، إداري، مشرف حلقة، مدير عام):', emps[index].role);
+            if (newRole && newRole.trim()) {
+                emps[index].role = newRole.trim();
+                saveEmployees(emps);
+                if (typeof syncToCloud === 'function') {
+                    syncToCloud(
+                        'تعديل صلاحية موظف',
+                        getActiveManagerName(),
+                        `الاسم: ${emps[index].fullname} | الصلاحية الجديدة: ${emps[index].role}`,
+                        { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.EMPLOYEES : undefined }
+                    );
+                }
+                refreshManagerView();
+                alert('تم تحديث الصلاحية بنجاح.');
+            }
+        }
+
+        function toggleFreezeEmp(index) {
+            const emps = getEmployees();
+            if (!emps[index]) return;
+            emps[index].status = emps[index].status === 'مجمد' ? 'نشط' : 'مجمد';
+            saveEmployees(emps);
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'تحديث حالة موظف',
+                    getActiveManagerName(),
+                    `الاسم: ${emps[index].fullname} | الحالة: ${emps[index].status}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.EMPLOYEES : undefined }
+                );
+            }
+            refreshManagerView();
+        }
+
+        function deleteEmp(index) {
+            const emps = getEmployees();
+            const deleted = emps[index];
+            if (!deleted) return;
+
+            if (confirm(`هل أنت متأكد من نقل الموظف (${deleted.fullname}) إلى الأرشيف؟`)) {
+                emps.splice(index, 1);
+                saveEmployees(emps);
+
+                if (typeof syncToCloud === 'function') {
+                    syncToCloud(
+                        'حذف موظف',
+                        getActiveManagerName(),
+                        `الاسم: ${deleted.fullname} | المستخدم: ${deleted.username || ''}`,
+                        {
+                            sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.EMPLOYEES : 'employees',
+                            data: { fullname: deleted.fullname, username: deleted.username || '' }
+                        }
+                    );
+                }
+
+                refreshManagerView();
+                alert('تم نقل الموظف إلى الأرشيف بنجاح ولن يعود للتطبيق.');
+            }
+        }
+
+        function addNewRing() {
+            const name = document.getElementById('ring-name-input').value.trim();
+            const teacher = document.getElementById('ring-teacher-input').value.trim();
+
+            if (!name || !teacher) {
+                alert('يرجى إدخال اسم الحلقة واسم المعلم المسؤول.');
+                return;
+            }
+
+            const rings = getRings();
+            rings.push({
+                name,
+                teacher,
+                attendanceRate: '%',
+                absenceRate: '%',
+                totalPoints: '0 نقطة',
+                studentsCount: '0 طالباً',
+                studentsData: []
+            });
+            saveRings(rings);
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'إضافة حلقة',
+                    getActiveManagerName(),
+                    `الحلقة: ${name} | المعلم: ${teacher}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.RINGS : undefined }
+                );
+            }
+
+            alert(`تمت إضافة الحلقة (${name}) بنجاح.`);
+            document.getElementById('ring-name-input').value = '';
+            document.getElementById('ring-teacher-input').value = '';
+            refreshManagerView();
+        }
+
+        function loadRingsTable() {
+            const tbody = document.getElementById('rings-table-body');
+            const rings = getRings();
+
+            if (rings.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد حلقات مضافة حتى الآن.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            rings.forEach((ring, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(ring.name)}</strong></td>
+                    <td>${escapeHtml(ring.teacher)}</td>
+                    <td>
+                        <button type="button" class="btn" style="padding: 5px 10px; font-size: 0.8rem;" onclick="editRing(${index})"><i class="fa-solid fa-pen-to-square"></i> تعديل</button>
+                        <button type="button" class="btn btn-info" style="padding: 5px 10px; font-size: 0.8rem;" onclick="showRingDetails(${index})"><i class="fa-solid fa-circle-info"></i> بيانات الحلقة</button>
+                        <button type="button" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8rem;" onclick="deleteRing(${index})"><i class="fa-solid fa-trash"></i> حذف</button>
+                        <button type="button" class="btn btn-success" style="padding: 5px 10px; font-size: 0.8rem;" onclick="exportRingToSheet(${index})"><i class="fa-solid fa-file-excel"></i> تصدير لجوجل شيت</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function editRing(index) {
+            const rings = getRings();
+            const ring = rings[index];
+            if (!ring) return;
+
+            const newName = prompt('تعديل اسم الحلقة:', ring.name);
+            if (newName === null) return;
+
+            const newTeacher = prompt('تعديل اسم المعلم المسؤول:', ring.teacher);
+            if (newTeacher === null) return;
+
+            ring.name = newName.trim() || ring.name;
+            ring.teacher = newTeacher.trim() || ring.teacher;
+
+            rings[index] = ring;
+            saveRings(rings);
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'تعديل بيانات حلقة',
+                    getActiveManagerName(),
+                    `الحلقة: ${ring.name} | المعلم: ${ring.teacher}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.RINGS : undefined }
+                );
+            }
+
+            refreshManagerView();
+            alert('تم تعديل بيانات الحلقة بنجاح.');
+        }
+
+        function showRingDetails(index) {
+            const rings = getRings();
+            const r = rings[index];
+            if (!r) return;
+            const count = Array.isArray(r.studentsData) ? r.studentsData.length : 0;
+            alert(`📊 تقرير بيانات (${r.name}):\n- المعلم المسؤول: ${r.teacher}\n- عدد الطلاب: ${count} طالباً\n- نسبة الحضور: ${r.attendanceRate || '95%'}\n- نسبة الغياب: ${r.absenceRate || '5%'}\n- إجمالي النقاط: ${r.totalPoints || '0 نقطة'}`);
+        }
+
+        function deleteRing(index) {
+            const rings = getRings();
+            const deleted = rings[index];
+            if (!deleted) return;
+
+            if (confirm(`هل أنت متأكد من نقل الحلقة (${deleted.name}) وبياناتها إلى الأرشيف؟`)) {
+                rings.splice(index, 1);
+                saveRings(rings);
+
+                if (typeof syncToCloud === 'function') {
+                    syncToCloud(
+                        'حذف حلقة',
+                        getActiveManagerName(),
+                        `الحلقة: ${deleted.name}`,
+                        {
+                            sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.RINGS : 'rings',
+                            data: { ringName: deleted.name }
+                        }
+                    );
+                }
+
+                refreshManagerView();
+                alert('تم نقل الحلقة إلى الأرشيف بنجاح ولن تعود للتطبيق.');
+            }
+        }
+
+        async function exportRingToSheet(index) {
+            const rings = getRings();
+            const r = rings[index];
+            if (!r) return;
+
+            let report = `📈 تم تصدير بيانات حلقة (${r.name}) إلى Google Sheets بنجاح:\n`;
+            if (!r.studentsData || r.studentsData.length === 0) {
+                report += `(لا توجد بيانات طلاب مسجلة في هذه الحلقة بعد)`;
+            } else {
+                r.studentsData.forEach(st => {
+                    report += `• الطالب: ${st.name} | الحضور: ${Number(st.presentDays || 0)} | الغياب: ${Number(st.absentDays || 0)} | النقاط: ${Number(st.points || 0)}\n`;
+                });
+            }
+
+            if (typeof exportAllDataToCloud === 'function') {
+                try {
+                    await exportAllDataToCloud();
+                } catch (e) {
+                    console.warn('تعذر التصدير الكامل:', e);
+                }
+            } else if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'تصدير حلقة لجوجل شيت',
+                    getActiveManagerName(),
+                    `الحلقة: ${r.name}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.RINGS : undefined }
+                );
+            }
+            alert(report);
+        }
+
+        function logout() {
+            localStorage.removeItem('current_user_role');
+            localStorage.removeItem('current_user_name');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

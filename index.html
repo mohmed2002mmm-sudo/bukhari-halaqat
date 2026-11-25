@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - مجمع الإمام البخاري</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #0369a1;
+            --secondary: #0284c7;
+            --light-blue: #e0f2fe;
+            --sky-tint: #f0f9ff;
+            --danger: #e63946;
+            --dark: #1e293b;
+            --gray: #64748b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
+        body {
+            background: linear-gradient(135deg, #bae6fd 0%, #e0f2fe 55%, #f0f9ff 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--dark);
+        }
+
+        .login-card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 440px;
+            border-radius: 18px;
+            padding: 32px 28px;
+            border: 1px solid #bae6fd;
+            box-shadow: 0 14px 35px rgba(3, 105, 161, 0.14);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .login-header i {
+            font-size: 2.5rem;
+            color: var(--primary);
+            background: var(--light-blue);
+            width: 68px;
+            height: 68px;
+            line-height: 68px;
+            border-radius: 50%;
+            margin-bottom: 12px;
+        }
+        .login-header h1 {
+            font-size: 1.4rem;
+            color: var(--primary);
+            font-weight: 900;
+        }
+        .login-header p {
+            color: var(--gray);
+            font-size: 0.92rem;
+            margin-top: 4px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            text-align: right;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 700;
+            font-size: 0.92rem;
+            color: var(--dark);
+        }
+        .form-control {
+            width: 100%;
+            padding: 11px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            background-color: var(--sky-tint);
+            color: var(--dark);
+            transition: 0.2s;
+        }
+        .form-control:focus {
+            border-color: var(--secondary);
+            background-color: #ffffff;
+            outline: none;
+        }
+
+        .password-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .password-wrapper .form-control {
+            padding-left: 44px;
+        }
+        .toggle-password-btn {
+            position: absolute;
+            left: 10px;
+            background: transparent;
+            border: none;
+            color: var(--gray);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+        .toggle-password-btn:hover {
+            color: var(--primary);
+        }
+
+        .btn-login {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .btn-login:hover {
+            background-color: var(--secondary);
+            transform: translateY(-1px);
+        }
+
+        .forgot-row {
+            margin-top: 12px;
+            text-align: center;
+        }
+        .btn-forgot {
+            background: transparent;
+            border: none;
+            color: var(--primary);
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 4px 8px;
+            transition: color 0.2s;
+        }
+        .btn-forgot:hover {
+            color: var(--secondary);
+        }
+
+        .error-msg {
+            background-color: #f8d7da;
+            color: #842029;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            margin-bottom: 14px;
+            display: none;
+            text-align: center;
+        }
+
+        .success-msg {
+            background-color: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            margin-bottom: 14px;
+            display: none;
+            text-align: center;
+        }
+    </style>
+
+    <!-- ربط ملف التخزين المركزي السحابي -->
+    <script src="storage.js"></script>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="login-header">
+            <i class="fa-solid fa-mosque"></i>
+            <h1>مجمع الإمام البخاري</h1>
+            <p>تسجيل الدخول إلى النظام الإداري</p>
+        </div>
+
+        <div id="login-error" class="error-msg"></div>
+        <div id="login-success" class="success-msg"></div>
+
+        <form onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label for="login-username">اسم المستخدم</label>
+                <input type="text" id="login-username" class="form-control" placeholder="أدخل اسم المستخدم" required>
+            </div>
+
+            <div class="form-group">
+                <label for="login-password">كلمة المرور</label>
+                <div class="password-wrapper">
+                    <input type="password" id="login-password" class="form-control" placeholder="أدخل كلمة المرور" required>
+                    <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility()" title="إظهار أو إخفاء كلمة المرور" aria-label="إظهار أو إخفاء كلمة المرور">
+                        <i id="toggle-password-icon" class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-login">
+                <i class="fa-solid fa-right-to-bracket"></i> دخول للنظام
+            </button>
+
+            <div class="forgot-row">
+                <button type="button" class="btn-forgot" onclick="handleForgotPassword()">
+                    تحديث كلمة مرور المدير العام
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const DEFAULT_ADMIN_USER = "admin";
+        const ADMIN_INITIALIZED_KEY = "mamma_admin_initialized";
+
+        const AUTO_ROLE_BY_USER = {
+            "admin": { role: "مدير عام", name: "المدير العام" }
+        };
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            const hasLocalEmployees = localStorage.getItem("mamma_employees");
+            if (!hasLocalEmployees && typeof importAllDataFromCloud === "function") {
+                try {
+                    await importAllDataFromCloud({ reloadPage: false });
+                } catch (e) {
+                    console.warn("تعذر جلب بيانات الموظفين تلقائياً:", e);
+                }
+            }
+        });
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById("login-password");
+            const icon = document.getElementById("toggle-password-icon");
+            if (!input || !icon) return;
+
+            const isHidden = input.type === "password";
+            input.type = isHidden ? "text" : "password";
+            icon.classList.toggle("fa-eye", !isHidden);
+            icon.classList.toggle("fa-eye-slash", isHidden);
+        }
+
+        function showError(msg) {
+            const errBox = document.getElementById("login-error");
+            const okBox = document.getElementById("login-success");
+            if (okBox) okBox.style.display = "none";
+            errBox.innerText = msg;
+            errBox.style.display = "block";
+        }
+
+        function showSuccess(msg) {
+            const okBox = document.getElementById("login-success");
+            const errBox = document.getElementById("login-error");
+            if (errBox) errBox.style.display = "none";
+            okBox.innerText = msg;
+            okBox.style.display = "block";
+        }
+
+        function hideMessages() {
+            const errBox = document.getElementById("login-error");
+            const okBox = document.getElementById("login-success");
+            if (errBox) errBox.style.display = "none";
+            if (okBox) okBox.style.display = "none";
+        }
+
+        async function setAdminPassword(newPass, reasonText) {
+            const cleanedPass = String(newPass || "").trim();
+            if (cleanedPass.length < 4) {
+                showError("يرجى إدخال كلمة مرور لا تقل عن 4 أحرف أو أرقام.");
+                return false;
+            }
+
+            const employees = JSON.parse(localStorage.getItem("mamma_employees") || "[]");
+            const adminIndex = employees.findIndex(emp =>
+                String(emp.username || "").trim().toLowerCase() === DEFAULT_ADMIN_USER
+            );
+
+            const adminRecord = {
+                fullname: adminIndex !== -1 && employees[adminIndex].fullname ? employees[adminIndex].fullname : "المدير العام",
+                username: DEFAULT_ADMIN_USER,
+                password: cleanedPass,
+                role: adminIndex !== -1 && employees[adminIndex].role ? employees[adminIndex].role : "مدير عام",
+                status: "نشط"
+            };
+
+            if (adminIndex !== -1) {
+                employees[adminIndex] = adminRecord;
+            } else {
+                employees.push(adminRecord);
+            }
+
+            localStorage.setItem("mamma_employees", JSON.stringify(employees));
+            localStorage.setItem(ADMIN_INITIALIZED_KEY, "true");
+
+            if (typeof syncToCloud === "function") {
+                try {
+                    const sheetRef = typeof SHEETS_12 !== "undefined" ? SHEETS_12.EMPLOYEES : "employees";
+                    await syncToCloud(
+                        "تحديث كلمة مرور المدير العام",
+                        adminRecord.fullname,
+                        `${reasonText} (${DEFAULT_ADMIN_USER})`,
+                        { sheet: sheetRef, data: adminRecord }
+                    );
+                } catch (e) {
+                    console.warn("تعذرت المزامنة السحابية:", e);
+                }
+            }
+            return true;
+        }
+
+        async function handleForgotPassword() {
+            hideMessages();
+
+            const enteredUsername = document.getElementById("login-username").value.trim().toLowerCase();
+            if (enteredUsername !== DEFAULT_ADMIN_USER) {
+                showError("يرجى كتابة اسم المستخدم (admin) أولاً لتحديث كلمة مرور المدير العام.");
+                return;
+            }
+
+            const newPass = prompt("أدخل كلمة المرور الجديدة لحساب المدير العام (admin):");
+            if (newPass === null) return;
+
+            const saved = await setAdminPassword(newPass, "تحديث كلمة المرور للحساب");
+            if (saved) {
+                document.getElementById("login-password").value = newPass.trim();
+                showSuccess("تم تحديث كلمة مرور المدير العام وحفظها بنجاح.");
+            }
+        }
+
+        function redirectByRole(role) {
+            const r = String(role || "").trim();
+            if (r === "مدير عام" || r.toLowerCase() === "manager") {
+                window.location.href = "system.html";
+            } else if (r === "إداري" || r.toLowerCase() === "admin") {
+                window.location.href = "admin.html";
+            } else if (r === "معلم" || r.toLowerCase() === "teacher") {
+                window.location.href = "teacher.html";
+            } else if (r === "مشرف حلقة" || r === "مشرف" || r.toLowerCase() === "supervisor") {
+                window.location.href = "supervisor.html";
+            } else {
+                window.location.href = "system.html";
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            hideMessages();
+
+            const username = document.getElementById("login-username").value.trim();
+            const password = document.getElementById("login-password").value.trim();
+
+            if (!username || !password) {
+                showError("يرجى إدخال اسم المستخدم وكلمة المرور.");
+                return;
+            }
+
+            const lowerUser = username.toLowerCase();
+            const employees = JSON.parse(localStorage.getItem("mamma_employees") || "[]");
+
+            // عند أول تسجيل دخول للأدمن (إذا لم يسبق تهيئته أو لم تُضبط كلمة مروره بعد)
+            const existingAdmin = employees.find(emp =>
+                String(emp.username || "").trim().toLowerCase() === DEFAULT_ADMIN_USER
+            );
+            const isAdminFirstLogin = lowerUser === DEFAULT_ADMIN_USER &&
+                localStorage.getItem(ADMIN_INITIALIZED_KEY) !== "true" &&
+                (!existingAdmin || !String(existingAdmin.password || "").trim());
+
+            if (isAdminFirstLogin) {
+                const updated = await setAdminPassword(password, "اعتماد كلمة المرور عند أول تسجيل دخول");
+                if (!updated) return;
+
+                const displayName = (existingAdmin && existingAdmin.fullname) || "المدير العام";
+                const finalRole = (existingAdmin && existingAdmin.role) || "مدير عام";
+
+                localStorage.setItem("current_user_name", displayName);
+                localStorage.setItem("current_user_role", finalRole);
+
+                if (typeof syncToCloud === "function") {
+                    await syncToCloud("تسجيل دخول", displayName, `أول تسجيل دخول وتحديث كلمة المرور | الدور: ${finalRole}`);
+                }
+
+                redirectByRole(finalRole);
+                return;
+            }
+
+            const refreshedEmployees = JSON.parse(localStorage.getItem("mamma_employees") || "[]");
+            const matchedEmp = refreshedEmployees.find(emp =>
+                String(emp.username || "").trim().toLowerCase() === lowerUser &&
+                String(emp.password || "").trim() === password
+            );
+
+            if (matchedEmp) {
+                if (matchedEmp.status === "مجمد") {
+                    showError("هذا الحساب مجمد حالياً، يرجى مراجعة الإدارة.");
+                    return;
+                }
+
+                if (lowerUser === DEFAULT_ADMIN_USER) {
+                    localStorage.setItem(ADMIN_INITIALIZED_KEY, "true");
+                }
+
+                const autoMap = AUTO_ROLE_BY_USER[lowerUser];
+                const finalRole = String(matchedEmp.role || (autoMap && autoMap.role) || "إداري").trim();
+                const displayName = String(matchedEmp.fullname || (autoMap && autoMap.name) || matchedEmp.username).trim();
+
+                localStorage.setItem("current_user_name", displayName);
+                localStorage.setItem("current_user_role", finalRole);
+
+                if (typeof syncToCloud === "function") {
+                    await syncToCloud("تسجيل دخول", displayName, `الدور التلقائي: ${finalRole} | اسم المستخدم: ${username}`);
+                }
+
+                redirectByRole(finalRole);
+                return;
+            }
+
+            showError("بيانات الدخول غير صحيحة أو الحساب غير مسجل.");
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة المعلم - مجمع الإمام البخاري</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1b4332;
+            --secondary: #2d6a4f;
+            --accent: #d8f3dc;
+            --warning: #ffb703;
+            --danger: #e63946;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
+        body { background-color: #f0f2f5; color: var(--dark); min-height: 100vh; display: flex; flex-direction: column; }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .logo-area h1 { font-size: 1.3rem; display: flex; align-items: center; gap: 10px; }
+        .user-panel { display: flex; align-items: center; gap: 15px; }
+
+        .container { max-width: 1100px; margin: 25px auto; padding: 0 15px; flex: 1; width: 100%; }
+
+        .btn {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-danger { background-color: var(--danger); }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 10px;
+            font-size: 1.15rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group { margin-bottom: 15px; text-align: right; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--dark); font-size: 0.95rem; }
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background-color: #fff;
+        }
+        .form-control:focus { border-color: var(--secondary); outline: none; }
+
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .data-table th, .data-table td { padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6; font-size: 0.9rem; }
+        .data-table th { background-color: #f1f3f5; color: var(--primary); }
+    </style>
+
+    <!-- ربط ملف التخزين المركزي السحابي -->
+    <script src="storage.js"></script>
+</head>
+<body>
+
+    <header>
+        <div class="logo-area">
+            <h1><i class="fa-solid fa-mosque"></i> مجمع الإمام البخاري - بوابة المعلم</h1>
+        </div>
+        <div class="user-panel">
+            <span id="header-user-name" style="font-weight: 700;">المعلم</span>
+            <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="logout()">
+                <i class="fa-solid fa-right-from-bracket"></i> خروج
+            </button>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- إرسال رسالة أو بلاغ للإدارة -->
+        <div class="card">
+            <h3><i class="fa-solid fa-paper-plane"></i> إرسال رسالة أو ملاحظة للإدارة</h3>
+            <div class="form-group">
+                <label>اسم المعلم</label>
+                <input type="text" id="teacher-sender-name" class="form-control" placeholder="اكتب اسمك الثلاثي" oninput="loadTeacherRings()">
+            </div>
+            <div class="form-group">
+                <label>نص الرسالة أو الملاحظة</label>
+                <textarea id="teacher-message-text" rows="3" class="form-control" placeholder="اكتب رسالتك أو بلاغك للإدارة هنا..."></textarea>
+            </div>
+            <button type="button" class="btn" onclick="sendTeacherMessage()">
+                <i class="fa-solid fa-paper-plane"></i> إرسال للإدارة ومزامنة سحابياً
+            </button>
+        </div>
+
+        <!-- عرض طلاب الحلقة ومتابعتهم -->
+        <div class="card">
+            <h3><i class="fa-solid fa-users"></i> طلاب الحلقات المسجلة</h3>
+            <div class="form-group">
+                <label>اختر الحلقة</label>
+                <select id="teacher-ring-select" class="form-control" onchange="loadTeacherStudents()">
+                    <option value="">-- اختر الحلقة --</option>
+                </select>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>اسم الطالب</th>
+                        <th>المرحلة</th>
+                        <th>الحالة</th>
+                        <th>النقاط</th>
+                    </tr>
+                </thead>
+                <tbody id="teacher-students-body">
+                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">اختر الحلقة لعرض الطلاب.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        function escapeHtml(text) {
+            return String(text || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function normalizeTeacherName(name) {
+            return String(name || '')
+                .trim()
+                .replace(/^(الشيخ|الشيخ\/|الأستاذ|أ\.|د\.)\s*/g, '')
+                .replace(/[أإآ]/g, 'ا')
+                .replace(/ة/g, 'ه')
+                .replace(/ى/g, 'ي')
+                .replace(/\s+/g, ' ')
+                .toLowerCase();
+        }
+
+        function getActiveTeacherName() {
+            const inputName = document.getElementById('teacher-sender-name');
+            if (inputName && inputName.value.trim()) {
+                return inputName.value.trim();
+            }
+            return localStorage.getItem('current_user_name') || '';
+        }
+
+        function isRingAssignedToTeacher(ring, teacherName) {
+            const target = normalizeTeacherName(teacherName);
+            if (!target || target === 'المعلم') return false;
+
+            const ringTeacher = normalizeTeacherName(
+                ring.teacher || ring.teacherName || ring.instructor || ''
+            );
+            const ringLabel = normalizeTeacherName(ring.name || ring.ringName || '');
+
+            if (
+                ringTeacher &&
+                (ringTeacher === target || ringTeacher.includes(target) || target.includes(ringTeacher))
+            ) {
+                return true;
+            }
+
+            if (ringLabel && ringLabel.includes(target)) {
+                return true;
+            }
+
+            return false;
+        }
+
+        window.onload = function() {
+            const savedName = localStorage.getItem('current_user_name') || 'المعلم';
+            document.getElementById('header-user-name').innerText = savedName;
+            const senderInput = document.getElementById('teacher-sender-name');
+            if (senderInput && savedName && savedName !== 'المعلم') {
+                senderInput.value = savedName;
+            }
+            loadTeacherRings();
+        };
+
+        function loadTeacherRings() {
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const select = document.getElementById('teacher-ring-select');
+            const tbody = document.getElementById('teacher-students-body');
+            if (!select) return;
+
+            const teacherName = getActiveTeacherName();
+            const assignedRings = rings.filter(r => r && r.name && isRingAssignedToTeacher(r, teacherName));
+
+            select.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+
+            if (assignedRings.length === 0) {
+                select.innerHTML = '<option value="">-- لا توجد حلقة مرتبطة بهذا المعلم --</option>';
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد حلقات مرتبطة بحساب المعلم الحالي.</td></tr>`;
+                }
+                return;
+            }
+
+            assignedRings.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.name;
+                opt.textContent = r.name + (r.teacher ? ` (${r.teacher})` : '');
+                select.appendChild(opt);
+            });
+
+            if (assignedRings.length === 1) {
+                select.value = assignedRings[0].name;
+                loadTeacherStudents();
+            } else if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">اختر الحلقة لعرض الطلاب.</td></tr>`;
+            }
+        }
+
+        function loadTeacherStudents() {
+            const ringName = document.getElementById('teacher-ring-select').value;
+            const tbody = document.getElementById('teacher-students-body');
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const teacherName = getActiveTeacherName();
+
+            const ring = rings.find(r => r && r.name === ringName && isRingAssignedToTeacher(r, teacherName));
+
+            if (!ring) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">اختر حلقتك لعرض الطلاب.</td></tr>`;
+                return;
+            }
+
+            if (!Array.isArray(ring.studentsData) || ring.studentsData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد بيانات طلاب في هذه الحلقة.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = ring.studentsData.map(st => `
+                <tr>
+                    <td><strong>${escapeHtml(st.name)}</strong></td>
+                    <td>${escapeHtml(st.grade || '-')}</td>
+                    <td>${escapeHtml(st.status || 'أخضر')}</td>
+                    <td><strong>${Number(st.points || 0)}</strong></td>
+                </tr>
+            `).join('');
+        }
+
+        function sendTeacherMessage() {
+            const teacherName = getActiveTeacherName() || 'المعلم';
+            const textEl = document.getElementById('teacher-message-text');
+            const text = textEl ? textEl.value.trim() : '';
+
+            if (!text) {
+                alert('يرجى كتابة نص الرسالة قبل الإرسال.');
+                return;
+            }
+
+            const timeStr = new Date().toLocaleString('ar-SA');
+            const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+
+            const messages = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
+            messages.unshift({
+                teacher: teacherName,
+                text: text,
+                time: timeStr,
+                date: dateStr
+            });
+            localStorage.setItem('teachers_messages', JSON.stringify(messages.slice(0, 500)));
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud('رسالة معلم', teacherName, text, {
+                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.MESSAGES : 'messages',
+                    teacher: teacherName,
+                    text: text,
+                    time: timeStr,
+                    date: dateStr
+                });
+            }
+
+            textEl.value = '';
+            alert('تم إرسال الرسالة إلى الإدارة ومزامنتها مع السحابة بنجاح.');
+        }
+
+        function logout() {
+            localStorage.removeItem('current_user_role');
+            localStorage.removeItem('current_user_name');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
