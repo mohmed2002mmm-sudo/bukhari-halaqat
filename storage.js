@@ -33,7 +33,7 @@ function isValidSelectionType(type) {
   return ['ideal_halaqa', 'halaqat_knight', 'tajweed'].includes(type);
 }
 
-export function createBukhariStorage(supabaseClient) {
+function createBukhariStorage(supabaseClient) {
   if (!supabaseClient || !supabaseClient.auth || !supabaseClient.from || !supabaseClient.rpc) {
     throw new Error('عميل Supabase غير مهيأ بشكل صحيح');
   }
@@ -715,3 +715,8 @@ export function createBukhariStorage(supabaseClient) {
     listMySentMessages,
   };
 }
+
+if (typeof window !== 'undefined') {
+  window.createBukhariStorage = createBukhariStorage;
+}
+```[cite: 5, 6]
