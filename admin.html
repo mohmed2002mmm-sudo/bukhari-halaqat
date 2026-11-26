@@ -49,7 +49,8 @@
             gap: 8px;
             text-decoration: none;
         }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.65; cursor: not-allowed; }
         .btn-danger { background-color: var(--danger); }
         .btn-warning { background-color: var(--warning); color: #000; }
         .btn-disabled { background-color: #adb5bd !important; cursor: not-allowed !important; pointer-events: none; opacity: 0.5; }
@@ -138,6 +139,7 @@
         .status-green { background-color: #d8f3dc; color: #1b4332; }
         .status-yellow { background-color: #fff3cd; color: #856404; }
         .status-orange { background-color: #ffe5d0; color: #d9480f; }
+        .status-red { background-color: #f8d7da; color: #842029; }
         .payment-badge {
             padding: 3px 8px;
             border-radius: 5px;
@@ -149,7 +151,8 @@
         .unpaid { background-color: #f8d7da; color: #721c24; }
     </style>
 
-    <!-- ربط ملف التخزين المركزي السحابي -->
+    <!-- ربط مكتبة Supabase وملف التخزين المركزي السحابي -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="storage.js"></script>
 </head>
 <body>
@@ -180,7 +183,7 @@
 
         <div class="grid-2">
             <div class="stats-box" id="payment-stats-box">نسب السداد وعدم السداد: اختر الحلقة لعرض النسب</div>
-            <div class="stats-box">نسبة زيادة النقاط الأسبوعية: 100%</div>
+            <div class="stats-box" id="attendance-progress-box">نسب الحضور والغياب وتقدم النقاط: جاري التحميل...</div>
         </div>
 
         <!-- متابعة رسائل وبلاغات المعلمين -->
@@ -273,7 +276,7 @@
                     <select id="new-st-status" class="form-control">
                         <option value="أخضر">🟢 أخضر</option>
                         <option value="أصفر">🟡 أصفر</option>
-                        <option value="برتقالي">🟠 برتقالي</option>
+                        <option value="أحمر">🔴 أحمر</option>
                     </select>
                 </div>
             </div>
@@ -469,6 +472,39 @@
     </div>
 
     <script>
+        let cloudStorage = null;
+        let cloudClient = null;
+        let cloudRingsCache = [];
+
+        function getSupabaseClient() {
+            if (window.bukhariSupabase) return window.bukhariSupabase;
+            if (window.supabaseClient) return window.supabaseClient;
+
+            const cfg = window.BUKHARI_SUPABASE_CONFIG || {};
+            const url = cfg.url || localStorage.getItem('bukhari_supabase_url') || '';
+            const anonKey = cfg.anonKey || localStorage.getItem('bukhari_supabase_anon_key') || '';
+
+            if (url && anonKey && window.supabase && typeof window.supabase.createClient === 'function') {
+                window.bukhariSupabase = window.supabase.createClient(url, anonKey);
+                return window.bukhariSupabase;
+            }
+            return null;
+        }
+
+        function initCloudStorage() {
+            const sb = getSupabaseClient();
+            if (sb && typeof createBukhariStorage === 'function') {
+                try {
+                    cloudClient = sb;
+                    cloudStorage = createBukhariStorage(sb);
+                    return cloudStorage;
+                } catch (e) {
+                    console.warn('تعذر تهيئة التخزين السحابي:', e);
+                }
+            }
+            return null;
+        }
+
         function getLocalDateKey() {
             const now = new Date();
             const year = now.getFullYear();
@@ -487,7 +523,7 @@
 
         function getActiveUserName() {
             const headerName = document.getElementById('header-user-name').innerText.trim();
-            return localStorage.getItem('current_user_name') || headerName || 'الإداري';
+            return sessionStorage.getItem('current_user_name') || localStorage.getItem('current_user_name') || headerName || 'الإداري';
         }
 
         function setDefaultDatesForNewSections() {
@@ -518,14 +554,126 @@
             return digits;
         }
 
-        window.onload = function() {
+        function statusColorToAr(code) {
+            if (code === 'yellow') return 'أصفر';
+            if (code === 'red') return 'أحمر';
+            if (code === 'orange') return 'برتقالي';
+            return 'أخضر';
+        }
+
+        function arStatusToColorCode(arStatus) {
+            const v = String(arStatus || '').trim();
+            if (v === 'أصفر' || v === 'yellow') return 'yellow';
+            if (v === 'أحمر' || v === 'red') return 'red';
+            if (v === 'برتقالي' || v === 'orange') return 'orange';
+            return 'green';
+        }
+
+        function arAttendanceToCode(arAtt) {
+            if (arAtt === 'غائب') return 'absent';
+            if (arAtt === 'متأخر') return 'late';
+            if (arAtt === 'غائب بعذر') return 'excused';
+            return 'present';
+        }
+
+        function codeAttendanceToAr(code) {
+            if (code === 'absent') return 'غائب';
+            if (code === 'late') return 'متأخر';
+            if (code === 'excused') return 'غائب بعذر';
+            return 'حاضر';
+        }
+
+        async function syncRingsFromCloud() {
+            if (!cloudStorage || !cloudClient) return false;
+            try {
+                const [{ data: halaqatRows, error: hErr }, studentsRows] = await Promise.all([
+                    cloudClient.from('halaqat').select('id, name').order('name', { ascending: true }),
+                    cloudStorage.supervisorListStudents()
+                ]);
+                if (hErr) throw hErr;
+
+                const mappedRings = (halaqatRows || []).map(h => {
+                    const stList = (studentsRows || [])
+                        .filter(s => String(s.halaqa_id || '') === String(h.id))
+                        .map(s => ({
+                            id: s.id,
+                            name: s.full_name,
+                            parentPhone: s.guardian_phone || '',
+                            identity: s.id,
+                            ageBirth: s.birth_date || '',
+                            grade: s.academic_stage || '',
+                            status: statusColorToAr(s.status_color),
+                            paymentStatus: s.is_paid ? 'مسدد' : 'لم يسدد',
+                            attendanceStatus: 'حاضر',
+                            absentDays: 0,
+                            points: Number(s.points || 0),
+                            halaqaId: h.id
+                        }));
+                    return {
+                        id: h.id,
+                        name: h.name,
+                        studentsData: stList,
+                        studentsCount: `${stList.length} طالباً`
+                    };
+                });
+
+                cloudRingsCache = mappedRings;
+                localStorage.setItem('mamma_rings', JSON.stringify(mappedRings));
+                return true;
+            } catch (e) {
+                console.warn('تعذر مزامنة الحلقات والطلاب من السحابة:', e);
+                return false;
+            }
+        }
+
+        async function refreshStudentProgressStats() {
+            const box = document.getElementById('attendance-progress-box');
+            if (!box) return;
+            if (!cloudStorage) {
+                box.textContent = 'نسبة زيادة النقاط الأسبوعية: 100%';
+                return;
+            }
+            try {
+                const stats = await cloudStorage.supervisorGetStudentProgressStats();
+                box.textContent = `نسب الطلاب: حضور ${stats.attendanceRate}% | غياب ${stats.absenceRate}%`;
+            } catch {
+                box.textContent = 'نسبة زيادة النقاط الأسبوعية: 100%';
+            }
+        }
+
+        window.onload = async function() {
+            const storage = initCloudStorage();
+            if (storage) {
+                try {
+                    const profile = await storage.getCurrentStaffProfile();
+                    const roleLower = String(profile.role || '').toLowerCase();
+                    if (roleLower === 'admin' || roleLower === 'general_manager' || roleLower === 'gm') {
+                        window.location.replace('system.html');
+                        return;
+                    }
+                    if (roleLower !== 'supervisor') {
+                        window.location.replace('index.html');
+                        return;
+                    }
+                    sessionStorage.setItem('current_user_name', profile.full_name);
+                    sessionStorage.setItem('current_user_role', profile.role);
+                    localStorage.setItem('current_user_name', profile.full_name);
+                    localStorage.setItem('current_user_role', profile.role);
+                } catch {
+                    // السماح بالاستمرار في وضع التوافق المحلي عند عدم توفر جلسة سحابية مفعّلة
+                }
+            }
+
             const currentName = getActiveUserName();
             document.getElementById('header-user-name').innerText = currentName;
             setDefaultDatesForNewSections();
+
+            await syncRingsFromCloud();
             loadRingsDropdowns();
             populateAllStudentsSelects();
             checkExistingAttendance();
-            loadTeachersMessages();
+            await loadTeachersMessages();
+            await refreshStudentProgressStats();
             renderExtraSections();
 
             setInterval(checkExistingAttendance, 60000);
@@ -563,10 +711,18 @@
             }
         }
 
-        function markAdminAttendance(type) {
+        async function markAdminAttendance(type) {
             const nowTime = new Date().toLocaleTimeString('ar-SA');
             const userName = getActiveUserName();
             const { startKey, endKey } = getAttendanceStorageKeys(userName);
+
+            try {
+                if (cloudStorage) {
+                    await cloudStorage.recordOwnStaffAttendance('present', getLocalDateKey());
+                }
+            } catch (err) {
+                console.warn('تعذر تسجيل الدوام السحابي:', err);
+            }
 
             if (type === 'start') {
                 const btn = document.getElementById('admin-start-btn');
@@ -580,7 +736,7 @@
                         sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAFF_ATTENDANCE : undefined
                     });
                 }
-                alert('تم تسجيل بداية الدوام الإداري وحفظه في السحابة بنجاح.');
+                alert('تم تسجيل بداية الدوام الإداري وحفظه بنجاح.');
             } else {
                 const btn = document.getElementById('admin-end-btn');
                 btn.classList.add('btn-disabled');
@@ -593,13 +749,34 @@
                         sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAFF_ATTENDANCE : undefined
                     });
                 }
-                alert('تم تسجيل نهاية الدوام الإداري وحفظه في السحابة بنجاح.');
+                alert('تم تسجيل نهاية الدوام الإداري وحفظه بنجاح.');
             }
         }
 
-        function loadTeachersMessages() {
-            const messages = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
+        async function loadTeachersMessages() {
             const tbody = document.getElementById('teachers-messages-body');
+            let messages = [];
+
+            if (cloudStorage) {
+                try {
+                    const cloudMsgs = await cloudStorage.supervisorListStaffMessages();
+                    messages = (cloudMsgs || []).map(m => ({
+                        id: m.id,
+                        teacher: m.subject || m.sender_role || 'موظف',
+                        text: m.message_body,
+                        reply: m.reply_body || '',
+                        time: m.created_at ? new Date(m.created_at).toLocaleString('ar-SA') : '',
+                        isCloud: true
+                    }));
+                } catch (e) {
+                    console.warn('تعذر جلب رسائل الموظفين من السحابة:', e);
+                }
+            }
+
+            if (messages.length === 0) {
+                const localMsgs = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
+                messages = localMsgs.map((m, idx) => ({ ...m, localIndex: idx, isCloud: false }));
+            }
 
             if (messages.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد رسائل أو ملاحظات مرسلة من المعلمين حالياً.</td></tr>`;
@@ -607,34 +784,49 @@
             }
 
             tbody.innerHTML = '';
-            messages.forEach((msg, index) => {
+            messages.forEach((msg) => {
                 const tr = document.createElement('tr');
+                const replyBadge = msg.reply
+                    ? `<br><small style="color: var(--secondary); font-weight: 700;">الرد: ${escapeHtml(msg.reply)}</small>`
+                    : '';
+                const actionArg = msg.isCloud ? `'cloud', ${Number(msg.id)}` : `'local', ${Number(msg.localIndex)}`;
                 tr.innerHTML = `
                     <td><strong>${escapeHtml(msg.teacher)}</strong><br><small style="color: var(--gray);">${escapeHtml(msg.time || '')}</small></td>
-                    <td>${escapeHtml(msg.text)}</td>
-                    <td><button type="button" class="btn" style="padding: 5px 12px; font-size: 0.85rem;" onclick="replyToTeacherMessage(${index})"><i class="fa-solid fa-reply"></i> الرد والاعتماد</button></td>
+                    <td>${escapeHtml(msg.text)}${replyBadge}</td>
+                    <td><button type="button" class="btn" style="padding: 5px 12px; font-size: 0.85rem;" onclick="replyToTeacherMessage(${actionArg})"><i class="fa-solid fa-reply"></i> الرد والاعتماد</button></td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function replyToTeacherMessage(index) {
-            const messages = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
-            if (!messages[index]) return;
+        async function replyToTeacherMessage(source, idOrIndex) {
+            const replyText = prompt('أدخل رد الإدارة على الرسالة:');
+            if (!replyText || !replyText.trim()) return;
 
-            const replyText = prompt('أدخل رد الإدارة على رسالة المعلم (' + messages[index].teacher + '):');
-            if (replyText && replyText.trim()) {
+            try {
+                if (source === 'cloud' && cloudStorage) {
+                    await cloudStorage.supervisorReplyToMessage(idOrIndex, replyText.trim());
+                    await loadTeachersMessages();
+                    alert('تم إرسال رد الإدارة وحفظه في السحابة بنجاح.');
+                    return;
+                }
+
+                const messages = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
+                if (!messages[idOrIndex]) return;
+
                 const adminName = getActiveUserName();
                 if (typeof syncToCloud === 'function') {
-                    syncToCloud('رد الإدارة على معلم', adminName, `المعلم: ${messages[index].teacher}, الرد: ${replyText.trim()}`, {
+                    syncToCloud('رد الإدارة على معلم', adminName, `المعلم: ${messages[idOrIndex].teacher}, الرد: ${replyText.trim()}`, {
                         sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.MESSAGES : undefined
                     });
                 }
 
-                messages.splice(index, 1);
+                messages.splice(idOrIndex, 1);
                 localStorage.setItem('teachers_messages', JSON.stringify(messages));
-                loadTeachersMessages();
-                alert('تم إرسال رد الإدارة ومزامنته سحابياً بنجاح.');
+                await loadTeachersMessages();
+                alert('تم إرسال رد الإدارة بنجاح.');
+            } catch (err) {
+                alert(err?.message || 'تعذر إرسال الرد حالياً.');
             }
         }
 
@@ -679,6 +871,9 @@
                 const opt1 = document.createElement('option');
                 opt1.value = ring.name;
                 opt1.textContent = ring.name;
+                if (ring.id !== undefined && ring.id !== null) {
+                    opt1.dataset.halaqaId = String(ring.id);
+                }
 
                 if (attendanceSelect) attendanceSelect.appendChild(opt1.cloneNode(true));
                 if (newStRingSelect) newStRingSelect.appendChild(opt1.cloneNode(true));
@@ -710,6 +905,8 @@
                     if (st && st.name) {
                         const opt = document.createElement('option');
                         opt.value = st.name;
+                        if (st.id) opt.dataset.studentId = String(st.id);
+                        if (ring.id) opt.dataset.halaqaId = String(ring.id);
                         opt.textContent = selectedRingName ? st.name : `${st.name} (${ring.name})`;
                         studentSelect.appendChild(opt);
                     }
@@ -767,7 +964,7 @@
             });
         }
 
-        function saveAttendanceChanges() {
+        async function saveAttendanceChanges() {
             const ringName = document.getElementById('attendance-ring-select').value;
             if (!ringName) {
                 alert('يرجى اختيار الحلقة أولاً.');
@@ -778,13 +975,14 @@
             const ringIndex = rings.findIndex(r => r.name === ringName);
             if (ringIndex === -1) return;
 
+            const ringObj = rings[ringIndex];
             const selects = document.querySelectorAll('.attendance-status-select');
             const summary = [];
 
-            selects.forEach(sel => {
+            for (const sel of selects) {
                 const idx = Number(sel.getAttribute('data-student-index'));
-                const st = rings[ringIndex].studentsData[idx];
-                if (!st) return;
+                const st = ringObj.studentsData[idx];
+                if (!st) continue;
 
                 const newStatus = sel.value;
                 st.attendanceStatus = newStatus;
@@ -792,10 +990,24 @@
                     st.absentDays = Number(st.absentDays || 0) + 1;
                 }
                 summary.push(`${st.name}: ${newStatus}`);
-            });
+
+                if (cloudStorage && (st.id || st.identity)) {
+                    try {
+                        await cloudStorage.supervisorMarkStudentAttendance({
+                            studentId: String(st.id || st.identity),
+                            halaqaId: ringObj.id || null,
+                            status: arAttendanceToCode(newStatus),
+                            recordDate: getLocalDateKey()
+                        });
+                    } catch (err) {
+                        console.warn('تعذر حفظ تحضير الطالب في السحابة:', err);
+                    }
+                }
+            }
 
             localStorage.setItem('mamma_rings', JSON.stringify(rings));
             loadStudentsForAttendance();
+            await refreshStudentProgressStats();
 
             if (typeof syncToCloud === 'function') {
                 syncToCloud('تحضير غياب الطلاب', getActiveUserName(), `الحلقة: ${ringName} | ${summary.join('، ')}`, {
@@ -806,7 +1018,7 @@
             alert('تم حفظ تحضير الطلاب بنجاح.');
         }
 
-        function addNewStudentToRing() {
+        async function addNewStudentToRing() {
             const nameInput = document.getElementById('new-st-name');
             const phoneInput = document.getElementById('new-st-phone');
             const idInput = document.getElementById('new-st-id');
@@ -841,25 +1053,50 @@
                 return;
             }
 
-            if (!Array.isArray(foundRing.studentsData)) {
-                foundRing.studentsData = [];
+            if (cloudStorage) {
+                if (!identity) {
+                    alert('يرجى إدخال رقم هوية الطالب للحفظ السحابي.');
+                    return;
+                }
+                try {
+                    await cloudStorage.supervisorAddStudent({
+                        id: identity,
+                        fullName: name,
+                        birthDate: ageBirth || null,
+                        statusColor: arStatusToColorCode(status),
+                        guardianPhone: parentPhone,
+                        academicStage: grade,
+                        isPaid: false,
+                        halaqaId: foundRing.id || null
+                    });
+                    await syncRingsFromCloud();
+                } catch (err) {
+                    alert(err?.message || 'تعذر إضافة الطالب في السحابة.');
+                    return;
+                }
+            } else {
+                if (!Array.isArray(foundRing.studentsData)) {
+                    foundRing.studentsData = [];
+                }
+                foundRing.studentsData.push({
+                    id: identity || `${Date.now()}`,
+                    name,
+                    parentPhone,
+                    identity,
+                    ageBirth,
+                    grade,
+                    status,
+                    paymentStatus: 'لم يسدد',
+                    attendanceStatus: 'حاضر',
+                    absentDays: 0,
+                    points: 0
+                });
+                foundRing.studentsCount = `${foundRing.studentsData.length} طالباً`;
+                localStorage.setItem('mamma_rings', JSON.stringify(rings));
             }
 
-            foundRing.studentsData.push({
-                name,
-                parentPhone,
-                identity,
-                ageBirth,
-                grade,
-                status,
-                paymentStatus: 'لم يسدد',
-                attendanceStatus: 'حاضر',
-                absentDays: 0,
-                points: 0
-            });
-
-            foundRing.studentsCount = `${foundRing.studentsData.length} طالباً`;
-            localStorage.setItem('mamma_rings', JSON.stringify(rings));
+            loadRingsDropdowns();
+            document.getElementById('new-st-ring').value = ringName;
             populateAllStudentsSelects();
 
             if (document.getElementById('manage-ring-select').value === ringName) {
@@ -909,7 +1146,10 @@
 
             tbody.innerHTML = '';
             students.forEach((st, idx) => {
-                const badgeClass = st.status === 'أصفر' ? 'status-yellow' : (st.status === 'برتقالي' ? 'status-orange' : 'status-green');
+                const badgeClass =
+                    st.status === 'أصفر' ? 'status-yellow' :
+                    st.status === 'أحمر' ? 'status-red' :
+                    st.status === 'برتقالي' ? 'status-orange' : 'status-green';
                 const payClass = st.paymentStatus === 'مسدد' ? 'paid' : 'unpaid';
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -918,7 +1158,7 @@
                         <span class="status-badge ${badgeClass}">${escapeHtml(st.status || 'أخضر')}</span>
                         <span class="payment-badge ${payClass}">${escapeHtml(st.paymentStatus || 'لم يسدد')}</span><br>
                         <small style="color: var(--gray);">
-                            الهوية: ${escapeHtml(st.identity || '-')} | الجوال: ${escapeHtml(st.parentPhone || '-')} | المرحلة: ${escapeHtml(st.grade || '-')} | النقاط: ${Number(st.points || 0)}
+                            الهوية: ${escapeHtml(st.identity || st.id || '-')} | الجوال: ${escapeHtml(st.parentPhone || '-')} | المرحلة: ${escapeHtml(st.grade || '-')} | النقاط: ${Number(st.points || 0)}
                         </small>
                     </td>
                     <td>
@@ -930,7 +1170,7 @@
             });
         }
 
-        function editStudentInRing(studentIndex) {
+        async function editStudentInRing(studentIndex) {
             const ringName = document.getElementById('manage-ring-select').value;
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
             const ring = rings.find(r => r.name === ringName);
@@ -951,6 +1191,22 @@
                 st.paymentStatus = newPay.trim();
             }
 
+            if (cloudStorage && cloudClient && (st.id || st.identity)) {
+                try {
+                    await cloudClient
+                        .from('students')
+                        .update({
+                            full_name: st.name,
+                            guardian_phone: st.parentPhone || null,
+                            academic_stage: st.grade || null,
+                            is_paid: st.paymentStatus === 'مسدد'
+                        })
+                        .eq('id', String(st.id || st.identity));
+                } catch (err) {
+                    console.warn('تعذر تحديث بيانات الطالب في السحابة:', err);
+                }
+            }
+
             localStorage.setItem('mamma_rings', JSON.stringify(rings));
             onManageRingSelected();
             populateAllStudentsSelects();
@@ -962,7 +1218,7 @@
             }
         }
 
-        function deleteStudentFromRing(studentIndex) {
+        async function deleteStudentFromRing(studentIndex) {
             const ringName = document.getElementById('manage-ring-select').value;
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
             const ring = rings.find(r => r.name === ringName);
@@ -970,6 +1226,15 @@
 
             const removed = ring.studentsData[studentIndex];
             if (!confirm(`هل أنت متأكد من حذف الطالب (${removed.name}) من حلقة (${ringName})؟`)) return;
+
+            if (cloudStorage && (removed.id || removed.identity)) {
+                try {
+                    await cloudStorage.supervisorDeleteStudent(String(removed.id || removed.identity));
+                } catch (err) {
+                    alert(err?.message || 'تعذر حذف الطالب من السحابة.');
+                    return;
+                }
+            }
 
             ring.studentsData.splice(studentIndex, 1);
             ring.studentsCount = `${ring.studentsData.length} طالباً`;
@@ -984,13 +1249,28 @@
             }
         }
 
-        function saveIdealRing() {
+        async function saveIdealRing() {
             const ringName = document.getElementById('ideal-ring-select').value;
             const date = document.getElementById('ideal-ring-date').value || getLocalDateKey();
             if (!ringName) {
                 alert('يرجى اختيار الحلقة.');
                 return;
             }
+
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const ringObj = rings.find(r => r.name === ringName);
+            if (cloudStorage && ringObj?.id) {
+                try {
+                    await cloudStorage.supervisorAddSelection({
+                        selectionType: 'ideal_halaqa',
+                        halaqaId: ringObj.id,
+                        periodDate: date
+                    });
+                } catch (err) {
+                    console.warn('تعذر حفظ الحلقة المثالية في السحابة:', err);
+                }
+            }
+
             const list = JSON.parse(localStorage.getItem('mamma_ideal_rings') || '[]');
             list.unshift({ ringName, date });
             localStorage.setItem('mamma_ideal_rings', JSON.stringify(list));
@@ -1019,13 +1299,28 @@
             `).join('');
         }
 
-        function saveTajweedEntry() {
+        async function saveTajweedEntry() {
             const ringName = document.getElementById('tajweed-ring-select').value;
             const date = document.getElementById('tajweed-date').value || getLocalDateKey();
             if (!ringName) {
                 alert('يرجى اختيار الحلقة.');
                 return;
             }
+
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const ringObj = rings.find(r => r.name === ringName);
+            if (cloudStorage && ringObj?.id) {
+                try {
+                    await cloudStorage.supervisorAddSelection({
+                        selectionType: 'tajweed',
+                        halaqaId: ringObj.id,
+                        periodDate: date
+                    });
+                } catch (err) {
+                    console.warn('تعذر حفظ سجل التجويد في السحابة:', err);
+                }
+            }
+
             const list = JSON.parse(localStorage.getItem('mamma_tajweed_entries') || '[]');
             list.unshift({ ringName, date });
             localStorage.setItem('mamma_tajweed_entries', JSON.stringify(list));
@@ -1054,7 +1349,7 @@
             `).join('');
         }
 
-        function saveRingKnight() {
+        async function saveRingKnight() {
             const ringName = document.getElementById('knight-ring-select').value;
             const studentName = document.getElementById('knight-student-select').value;
             const date = document.getElementById('knight-date').value || getLocalDateKey();
@@ -1062,6 +1357,24 @@
                 alert('يرجى اختيار الحلقة والطالب.');
                 return;
             }
+
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const ringObj = rings.find(r => r.name === ringName);
+            const studentObj = (ringObj?.studentsData || []).find(s => s.name === studentName);
+
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.supervisorAddSelection({
+                        selectionType: 'halaqat_knight',
+                        halaqaId: ringObj?.id || null,
+                        studentId: studentObj?.id || studentObj?.identity || null,
+                        periodDate: date
+                    });
+                } catch (err) {
+                    console.warn('تعذر حفظ فارس الحلقات في السحابة:', err);
+                }
+            }
+
             const list = JSON.parse(localStorage.getItem('mamma_ring_knights') || '[]');
             list.unshift({ ringName, studentName, date });
             localStorage.setItem('mamma_ring_knights', JSON.stringify(list));
@@ -1169,7 +1482,7 @@
             });
         }
 
-        function savePointsChanges() {
+        async function savePointsChanges() {
             const ringName = document.getElementById('points-ring-select').value;
             if (!ringName) {
                 alert('يرجى اختيار الحلقة أولاً.');
@@ -1184,21 +1497,38 @@
             const subInputs = document.querySelectorAll('.pts-sub-input');
             const summary = [];
 
-            addInputs.forEach((addEl, i) => {
+            for (let i = 0; i < addInputs.length; i++) {
+                const addEl = addInputs[i];
                 const idx = Number(addEl.getAttribute('data-index'));
                 const subEl = subInputs[i];
                 const st = rings[ringIndex].studentsData[idx];
-                if (!st) return;
+                if (!st) continue;
 
                 const addVal = Number(addEl.value || 0);
                 const subVal = Number(subEl ? subEl.value : 0);
-                const updated = Math.max(0, Number(st.points || 0) + addVal - subVal);
+                const netDelta = addVal - subVal;
+
+                if (cloudStorage && netDelta !== 0 && (st.id || st.identity)) {
+                    try {
+                        await cloudStorage.supervisorAdjustPoints({
+                            studentId: String(st.id || st.identity),
+                            pointsDelta: netDelta,
+                            reason: `رصد نقاط (${ringName})`
+                        });
+                    } catch (err) {
+                        console.warn('تعذر تحديث نقاط الطالب في السحابة:', err);
+                    }
+                }
+
+                const updated = Math.max(0, Number(st.points || 0) + netDelta);
                 st.points = updated;
                 summary.push(`${st.name}: ${updated}`);
-            });
+            }
 
+            await syncRingsFromCloud();
             localStorage.setItem('mamma_rings', JSON.stringify(rings));
             loadStudentsForPointsTable();
+            await refreshStudentProgressStats();
 
             if (typeof syncToCloud === 'function') {
                 syncToCloud('اعتماد نقاط الطلاب', getActiveUserName(), `الحلقة: ${ringName} | ${summary.join('، ')}`, {
@@ -1209,33 +1539,55 @@
             alert('تم اعتماد النقاط وتحديثها بنجاح.');
         }
 
-        function resetPointsTable() {
+        async function resetPointsTable() {
             const ringName = document.getElementById('points-ring-select').value;
             if (!ringName) {
                 alert('يرجى اختيار الحلقة أولاً.');
                 return;
             }
-            if (!confirm(`هل أنت متأكد من تصفير نقاط جميع طلاب حلقة (${ringName})؟`)) return;
+            if (!confirm(`هل أنت متأكد من تصفير النقاط وحضور/غياب الطلاب وإعادة حالة السداد إلى «لم يسدد»؟`)) return;
+
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.supervisorResetCycleWithPoints();
+                } catch (err) {
+                    alert(err?.message || 'تعذر تنفيذ التصفير الشامل في السحابة.');
+                    return;
+                }
+            }
 
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ring = rings.find(r => r.name === ringName);
-            if (!ring || !Array.isArray(ring.studentsData)) return;
-
-            ring.studentsData.forEach(st => {
-                st.points = 0;
+            rings.forEach(r => {
+                (r.studentsData || []).forEach(st => {
+                    st.points = 0;
+                    st.attendanceStatus = 'حاضر';
+                    st.absentDays = 0;
+                    st.paymentStatus = 'لم يسدد';
+                });
             });
 
             localStorage.setItem('mamma_rings', JSON.stringify(rings));
+            updatePaymentStatsBox(ringName);
             loadStudentsForPointsTable();
+            await refreshStudentProgressStats();
 
             if (typeof syncToCloud === 'function') {
                 syncToCloud('تصفير نقاط الحلقة', getActiveUserName(), `الحلقة: ${ringName}`, {
                     sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.POINTS : undefined
                 });
             }
+
+            alert('تم تنفيذ التصفير الشامل بنجاح.');
         }
 
-        function logout() {
+        async function logout() {
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.logout();
+                } catch {}
+            }
+            sessionStorage.removeItem('current_user_name');
+            sessionStorage.removeItem('current_user_role');
             localStorage.removeItem('current_user_name');
             localStorage.removeItem('current_user_role');
             window.location.href = 'index.html';
