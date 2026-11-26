@@ -132,28 +132,13 @@
             gap: 8px;
             margin-top: 10px;
         }
-        .btn-login:hover {
+        .btn-login:hover:not(:disabled) {
             background-color: var(--secondary);
             transform: translateY(-1px);
         }
-
-        .forgot-row {
-            margin-top: 12px;
-            text-align: center;
-        }
-        .btn-forgot {
-            background: transparent;
-            border: none;
-            color: var(--primary);
-            font-size: 0.88rem;
-            font-weight: 700;
-            cursor: pointer;
-            text-decoration: underline;
-            padding: 4px 8px;
-            transition: color 0.2s;
-        }
-        .btn-forgot:hover {
-            color: var(--secondary);
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
 
         .error-msg {
@@ -167,22 +152,10 @@
             display: none;
             text-align: center;
         }
-
-        .success-msg {
-            background-color: #e0f2fe;
-            color: #0369a1;
-            border: 1px solid #bae6fd;
-            padding: 10px 12px;
-            border-radius: 8px;
-            font-size: 0.88rem;
-            font-weight: 700;
-            margin-bottom: 14px;
-            display: none;
-            text-align: center;
-        }
     </style>
 
-    <!-- ربط ملف التخزين المركزي السحابي -->
+    <!-- تحميل مكتبة Supabase والملف السحابي -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="storage.js"></script>
 </head>
 <body>
@@ -195,54 +168,56 @@
         </div>
 
         <div id="login-error" class="error-msg"></div>
-        <div id="login-success" class="success-msg"></div>
 
-        <form onsubmit="handleLogin(event)">
+        <form id="login-form" onsubmit="handleLogin(event)">
             <div class="form-group">
-                <label for="login-username">اسم المستخدم</label>
-                <input type="text" id="login-username" class="form-control" placeholder="أدخل اسم المستخدم" required>
+                <label for="login-username">اسم المستخدم / المعرف الوظيفي</label>
+                <input type="text" id="login-username" class="form-control" placeholder="أدخل اسم المستخدم أو المعرف" autocomplete="username" required>
             </div>
 
             <div class="form-group">
                 <label for="login-password">كلمة المرور</label>
                 <div class="password-wrapper">
-                    <input type="password" id="login-password" class="form-control" placeholder="أدخل كلمة المرور" required>
+                    <input type="password" id="login-password" class="form-control" placeholder="أدخل كلمة المرور" autocomplete="current-password" required>
                     <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility()" title="إظهار أو إخفاء كلمة المرور" aria-label="إظهار أو إخفاء كلمة المرور">
                         <i id="toggle-password-icon" class="fa-solid fa-eye"></i>
                     </button>
                 </div>
             </div>
 
-            <button type="submit" class="btn-login">
+            <button type="submit" id="login-submit-btn" class="btn-login">
                 <i class="fa-solid fa-right-to-bracket"></i> دخول للنظام
             </button>
-
-            <div class="forgot-row">
-                <button type="button" class="btn-forgot" onclick="handleForgotPassword()">
-                    تحديث كلمة مرور المدير العام
-                </button>
-            </div>
         </form>
     </div>
 
     <script>
-        const DEFAULT_ADMIN_USER = "admin";
-        const ADMIN_INITIALIZED_KEY = "mamma_admin_initialized";
+        function getSupabaseClient() {
+            if (window.bukhariSupabase) return window.bukhariSupabase;
+            if (window.supabaseClient) return window.supabaseClient;
 
-        const AUTO_ROLE_BY_USER = {
-            "admin": { role: "مدير عام", name: "المدير العام" }
-        };
+            const cfg = window.BUKHARI_SUPABASE_CONFIG || {};
+            const url = cfg.url || localStorage.getItem("bukhari_supabase_url") || "";
+            const anonKey = cfg.anonKey || localStorage.getItem("bukhari_supabase_anon_key") || "";
 
-        window.addEventListener("DOMContentLoaded", async () => {
-            const hasLocalEmployees = localStorage.getItem("mamma_employees");
-            if (!hasLocalEmployees && typeof importAllDataFromCloud === "function") {
+            if (url && anonKey && window.supabase && typeof window.supabase.createClient === "function") {
+                window.bukhariSupabase = window.supabase.createClient(url, anonKey);
+                return window.bukhariSupabase;
+            }
+            return null;
+        }
+
+        function getStorageInstance() {
+            const sb = getSupabaseClient();
+            if (sb && typeof createBukhariStorage === "function") {
                 try {
-                    await importAllDataFromCloud({ reloadPage: false });
+                    return createBukhariStorage(sb);
                 } catch (e) {
-                    console.warn("تعذر جلب بيانات الموظفين تلقائياً:", e);
+                    console.warn("تعذر تهيئة createBukhariStorage:", e);
                 }
             }
-        });
+            return null;
+        }
 
         function togglePasswordVisibility() {
             const input = document.getElementById("login-password");
@@ -257,100 +232,42 @@
 
         function showError(msg) {
             const errBox = document.getElementById("login-error");
-            const okBox = document.getElementById("login-success");
-            if (okBox) okBox.style.display = "none";
-            errBox.innerText = msg;
+            errBox.textContent = msg;
             errBox.style.display = "block";
         }
 
-        function showSuccess(msg) {
-            const okBox = document.getElementById("login-success");
+        function hideError() {
             const errBox = document.getElementById("login-error");
             if (errBox) errBox.style.display = "none";
-            okBox.innerText = msg;
-            okBox.style.display = "block";
         }
 
-        function hideMessages() {
-            const errBox = document.getElementById("login-error");
-            const okBox = document.getElementById("login-success");
-            if (errBox) errBox.style.display = "none";
-            if (okBox) okBox.style.display = "none";
+        function setLoginLoading(isLoading) {
+            const btn = document.getElementById("login-submit-btn");
+            if (!btn) return;
+            btn.disabled = isLoading;
+            btn.dataset.origHtml = btn.dataset.origHtml || btn.innerHTML;
+            btn.innerHTML = isLoading
+                ? '<i class="fa-solid fa-spinner fa-spin"></i> جاري التحقق...'
+                : btn.dataset.origHtml;
         }
 
-        async function setAdminPassword(newPass, reasonText) {
-            const cleanedPass = String(newPass || "").trim();
-            if (cleanedPass.length < 4) {
-                showError("يرجى إدخال كلمة مرور لا تقل عن 4 أحرف أو أرقام.");
-                return false;
-            }
-
-            const employees = JSON.parse(localStorage.getItem("mamma_employees") || "[]");
-            const adminIndex = employees.findIndex(emp =>
-                String(emp.username || "").trim().toLowerCase() === DEFAULT_ADMIN_USER
-            );
-
-            const adminRecord = {
-                fullname: adminIndex !== -1 && employees[adminIndex].fullname ? employees[adminIndex].fullname : "المدير العام",
-                username: DEFAULT_ADMIN_USER,
-                password: cleanedPass,
-                role: adminIndex !== -1 && employees[adminIndex].role ? employees[adminIndex].role : "مدير عام",
-                status: "نشط"
-            };
-
-            if (adminIndex !== -1) {
-                employees[adminIndex] = adminRecord;
-            } else {
-                employees.push(adminRecord);
-            }
-
-            localStorage.setItem("mamma_employees", JSON.stringify(employees));
-            localStorage.setItem(ADMIN_INITIALIZED_KEY, "true");
-
-            if (typeof syncToCloud === "function") {
-                try {
-                    const sheetRef = typeof SHEETS_12 !== "undefined" ? SHEETS_12.EMPLOYEES : "employees";
-                    await syncToCloud(
-                        "تحديث كلمة مرور المدير العام",
-                        adminRecord.fullname,
-                        `${reasonText} (${DEFAULT_ADMIN_USER})`,
-                        { sheet: sheetRef, data: adminRecord }
-                    );
-                } catch (e) {
-                    console.warn("تعذرت المزامنة السحابية:", e);
-                }
-            }
-            return true;
-        }
-
-        async function handleForgotPassword() {
-            hideMessages();
-
-            const enteredUsername = document.getElementById("login-username").value.trim().toLowerCase();
-            if (enteredUsername !== DEFAULT_ADMIN_USER) {
-                showError("يرجى كتابة اسم المستخدم (admin) أولاً لتحديث كلمة مرور المدير العام.");
-                return;
-            }
-
-            const newPass = prompt("أدخل كلمة المرور الجديدة لحساب المدير العام (admin):");
-            if (newPass === null) return;
-
-            const saved = await setAdminPassword(newPass, "تحديث كلمة المرور للحساب");
-            if (saved) {
-                document.getElementById("login-password").value = newPass.trim();
-                showSuccess("تم تحديث كلمة مرور المدير العام وحفظها بنجاح.");
-            }
-        }
-
+        // الأدمن والمدير العام لهما نفس الصلاحية والتوجيه
         function redirectByRole(role) {
-            const r = String(role || "").trim();
-            if (r === "مدير عام" || r.toLowerCase() === "manager") {
+            const r = String(role || "").trim().toLowerCase();
+            if (
+                r === "admin" ||
+                r === "general_manager" ||
+                r === "gm" ||
+                r === "مدير عام" ||
+                r === "manager" ||
+                r === "أدمن"
+            ) {
                 window.location.href = "system.html";
-            } else if (r === "إداري" || r.toLowerCase() === "admin") {
+            } else if (r === "supervisor" || r === "إداري") {
                 window.location.href = "admin.html";
-            } else if (r === "معلم" || r.toLowerCase() === "teacher") {
+            } else if (r === "teacher" || r === "معلم") {
                 window.location.href = "teacher.html";
-            } else if (r === "مشرف حلقة" || r === "مشرف" || r.toLowerCase() === "supervisor") {
+            } else if (r === "monitor" || r === "مشرف حلقة" || r === "مشرف") {
                 window.location.href = "supervisor.html";
             } else {
                 window.location.href = "system.html";
@@ -359,78 +276,52 @@
 
         async function handleLogin(event) {
             event.preventDefault();
-            hideMessages();
+            hideError();
 
             const username = document.getElementById("login-username").value.trim();
-            const password = document.getElementById("login-password").value.trim();
+            const password = document.getElementById("login-password").value;
 
             if (!username || !password) {
                 showError("يرجى إدخال اسم المستخدم وكلمة المرور.");
                 return;
             }
 
-            const lowerUser = username.toLowerCase();
-            const employees = JSON.parse(localStorage.getItem("mamma_employees") || "[]");
-
-            // عند أول تسجيل دخول للأدمن (إذا لم يسبق تهيئته أو لم تُضبط كلمة مروره بعد)
-            const existingAdmin = employees.find(emp =>
-                String(emp.username || "").trim().toLowerCase() === DEFAULT_ADMIN_USER
-            );
-            const isAdminFirstLogin = lowerUser === DEFAULT_ADMIN_USER &&
-                localStorage.getItem(ADMIN_INITIALIZED_KEY) !== "true" &&
-                (!existingAdmin || !String(existingAdmin.password || "").trim());
-
-            if (isAdminFirstLogin) {
-                const updated = await setAdminPassword(password, "اعتماد كلمة المرور عند أول تسجيل دخول");
-                if (!updated) return;
-
-                const displayName = (existingAdmin && existingAdmin.fullname) || "المدير العام";
-                const finalRole = (existingAdmin && existingAdmin.role) || "مدير عام";
-
-                localStorage.setItem("current_user_name", displayName);
-                localStorage.setItem("current_user_role", finalRole);
-
-                if (typeof syncToCloud === "function") {
-                    await syncToCloud("تسجيل دخول", displayName, `أول تسجيل دخول وتحديث كلمة المرور | الدور: ${finalRole}`);
-                }
-
-                redirectByRole(finalRole);
-                return;
-            }
-
-            const refreshedEmployees = JSON.parse(localStorage.getItem("mamma_employees") || "[]");
-            const matchedEmp = refreshedEmployees.find(emp =>
-                String(emp.username || "").trim().toLowerCase() === lowerUser &&
-                String(emp.password || "").trim() === password
-            );
-
-            if (matchedEmp) {
-                if (matchedEmp.status === "مجمد") {
-                    showError("هذا الحساب مجمد حالياً، يرجى مراجعة الإدارة.");
+            setLoginLoading(true);
+            try {
+                const storage = getStorageInstance();
+                if (!storage) {
+                    showError("تعذر الاتصال بخدمة التحقق السحابية، تأكد من إعدادات الاتصال.");
                     return;
                 }
 
-                if (lowerUser === DEFAULT_ADMIN_USER) {
-                    localStorage.setItem(ADMIN_INITIALIZED_KEY, "true");
-                }
-
-                const autoMap = AUTO_ROLE_BY_USER[lowerUser];
-                const finalRole = String(matchedEmp.role || (autoMap && autoMap.role) || "إداري").trim();
-                const displayName = String(matchedEmp.fullname || (autoMap && autoMap.name) || matchedEmp.username).trim();
-
-                localStorage.setItem("current_user_name", displayName);
-                localStorage.setItem("current_user_role", finalRole);
-
-                if (typeof syncToCloud === "function") {
-                    await syncToCloud("تسجيل دخول", displayName, `الدور التلقائي: ${finalRole} | اسم المستخدم: ${username}`);
-                }
-
-                redirectByRole(finalRole);
-                return;
+                const { profile } = await storage.loginWithStaffId(username, password);
+                sessionStorage.setItem("current_user_name", profile.full_name);
+                sessionStorage.setItem("current_user_role", profile.role);
+                sessionStorage.setItem("current_staff_id", profile.staff_id);
+                redirectByRole(profile.role);
+            } catch (err) {
+                showError(err?.message || "بيانات الدخول غير صحيحة أو الحساب مجمّد.");
+            } finally {
+                setLoginLoading(false);
             }
-
-            showError("بيانات الدخول غير صحيحة أو الحساب غير مسجل.");
         }
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            const storage = getStorageInstance();
+            if (!storage) return;
+
+            try {
+                const profile = await storage.getCurrentStaffProfile();
+                if (profile && profile.role) {
+                    sessionStorage.setItem("current_user_name", profile.full_name);
+                    sessionStorage.setItem("current_user_role", profile.role);
+                    sessionStorage.setItem("current_staff_id", profile.staff_id);
+                    redirectByRole(profile.role);
+                }
+            } catch {
+                // لا توجد جلسة نشطة بعد
+            }
+        });
     </script>
 </body>
 </html>
