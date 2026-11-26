@@ -48,7 +48,8 @@
             align-items: center;
             gap: 8px;
         }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.65; cursor: not-allowed; }
         .btn-danger { background-color: var(--danger); }
 
         .card {
@@ -86,7 +87,8 @@
         .data-table th { background-color: #f1f3f5; color: var(--primary); }
     </style>
 
-    <!-- ربط ملف التخزين المركزي السحابي -->
+    <!-- ربط مكتبة Supabase وملف التخزين المركزي السحابي -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="storage.js"></script>
 </head>
 <body>
@@ -128,7 +130,7 @@
             </table>
 
             <div style="margin-top: 15px;">
-                <button type="button" class="btn" onclick="saveAttendanceSheet()">
+                <button type="button" id="save-att-btn" class="btn" onclick="saveAttendanceSheet()">
                     <i class="fa-solid fa-floppy-disk"></i> حفظ ومزامنة التحضير
                 </button>
             </div>
@@ -137,10 +139,45 @@
     </div>
 
     <script>
+        let cloudStorage = null;
+        let cloudClient = null;
+
+        function getSupabaseClient() {
+            if (window.bukhariSupabase) return window.bukhariSupabase;
+            if (window.supabaseClient) return window.supabaseClient;
+
+            const cfg = window.BUKHARI_SUPABASE_CONFIG || {};
+            const url = cfg.url || localStorage.getItem('bukhari_supabase_url') || '';
+            const anonKey = cfg.anonKey || localStorage.getItem('bukhari_supabase_anon_key') || '';
+
+            if (url && anonKey && window.supabase && typeof window.supabase.createClient === 'function') {
+                window.bukhariSupabase = window.supabase.createClient(url, anonKey);
+                return window.bukhariSupabase;
+            }
+            return null;
+        }
+
+        function initCloudStorage() {
+            const sb = getSupabaseClient();
+            if (sb && typeof createBukhariStorage === 'function') {
+                try {
+                    cloudClient = sb;
+                    cloudStorage = createBukhariStorage(sb);
+                    return cloudStorage;
+                } catch (e) {
+                    console.warn('تعذر تهيئة التخزين السحابي:', e);
+                }
+            }
+            return null;
+        }
+
         function getTodayStr() {
-            return typeof getLocalDateStr === 'function'
-                ? getLocalDateStr()
-                : new Date().toISOString().slice(0, 10);
+            if (typeof getLocalDateStr === 'function') return getLocalDateStr();
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
         }
 
         function escapeHtml(text) {
@@ -152,9 +189,88 @@
                 .replace(/'/g, '&#39;');
         }
 
-        window.onload = function() {
-            const savedName = localStorage.getItem('current_user_name') || 'التحضير';
+        function arAttendanceToCode(arAtt) {
+            if (arAtt === 'غائب') return 'absent';
+            if (arAtt === 'متأخر') return 'late';
+            if (arAtt === 'غائب بعذر') return 'excused';
+            return 'present';
+        }
+
+        async function syncRingsFromCloud() {
+            if (!cloudStorage || !cloudClient) return false;
+            try {
+                const [{ data: halaqatRows, error: hErr }, studentsRows] = await Promise.all([
+                    cloudClient.from('halaqat').select('id, name').order('name', { ascending: true }),
+                    cloudStorage.supervisorListStudents()
+                ]);
+                if (hErr) throw hErr;
+
+                const existingRings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+                const prevById = {};
+                existingRings.forEach(r => {
+                    if (r.id !== undefined) prevById[String(r.id)] = r;
+                });
+
+                const mappedRings = (halaqatRows || []).map(h => {
+                    const prevRing = prevById[String(h.id)] || {};
+                    const prevStById = {};
+                    (prevRing.studentsData || []).forEach(s => {
+                        if (s.id) prevStById[String(s.id)] = s;
+                    });
+
+                    const stList = (studentsRows || [])
+                        .filter(s => String(s.halaqa_id || '') === String(h.id))
+                        .map(s => {
+                            const prevSt = prevStById[String(s.id)] || {};
+                            return {
+                                id: s.id,
+                                name: s.full_name,
+                                grade: s.academic_stage || prevSt.grade || '',
+                                attendanceStatus: prevSt.attendanceStatus || 'حاضر',
+                                presentDays: Number(prevSt.presentDays || 0),
+                                absentDays: Number(prevSt.absentDays || 0),
+                                lastAttendanceDate: prevSt.lastAttendanceDate || ''
+                            };
+                        });
+
+                    return {
+                        id: h.id,
+                        name: h.name,
+                        studentsData: stList
+                    };
+                });
+
+                localStorage.setItem('mamma_rings', JSON.stringify(mappedRings));
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        window.onload = async function() {
+            const storage = initCloudStorage();
+            if (storage) {
+                try {
+                    const profile = await storage.getCurrentStaffProfile();
+                    const roleLower = String(profile.role || '').toLowerCase();
+                    const allowed = ['supervisor', 'admin', 'general_manager', 'gm', 'teacher', 'monitor'];
+                    if (!allowed.includes(roleLower)) {
+                        window.location.replace('index.html');
+                        return;
+                    }
+                    sessionStorage.setItem('current_user_name', profile.full_name);
+                    sessionStorage.setItem('current_user_role', profile.role);
+                    localStorage.setItem('current_user_name', profile.full_name);
+                    localStorage.setItem('current_user_role', profile.role);
+                } catch {
+                    // السماح بالاستمرار في وضع التوافق المحلي عند عدم توفر جلسة سحابية مفعّلة
+                }
+            }
+
+            const savedName = sessionStorage.getItem('current_user_name') || localStorage.getItem('current_user_name') || 'التحضير';
             document.getElementById('header-user-name').innerText = savedName;
+
+            await syncRingsFromCloud();
             loadAttendanceRings();
         };
 
@@ -204,7 +320,7 @@
             });
         }
 
-        function saveAttendanceSheet() {
+        async function saveAttendanceSheet() {
             const ringName = document.getElementById('att-ring-select').value;
             if (!ringName) {
                 alert('يرجى اختيار الحلقة أولاً.');
@@ -218,62 +334,89 @@
                 return;
             }
 
-            const today = getTodayStr();
-            const logs = JSON.parse(localStorage.getItem('mamma_student_attendance') || '[]');
-            const rows = document.querySelectorAll('#att-students-body tr[data-idx]');
-            const summary = [];
+            const saveBtn = document.getElementById('save-att-btn');
+            if (saveBtn) saveBtn.disabled = true;
 
-            rows.forEach(tr => {
-                const idx = Number(tr.dataset.idx);
-                const st = ring.studentsData[idx];
-                if (!st) return;
+            try {
+                const today = getTodayStr();
+                const logs = JSON.parse(localStorage.getItem('mamma_student_attendance') || '[]');
+                const rows = document.querySelectorAll('#att-students-body tr[data-idx]');
+                const summary = [];
 
-                const status = tr.querySelector('.att-status-select').value;
-                const previousStatus = st.attendanceStatus;
-                st.attendanceStatus = status;
+                for (const tr of rows) {
+                    const idx = Number(tr.dataset.idx);
+                    const st = ring.studentsData[idx];
+                    if (!st) continue;
 
-                if (st.lastAttendanceDate !== today) {
-                    if (status === 'غائب') {
-                        st.absentDays = Number(st.absentDays || 0) + 1;
-                    } else if (status === 'حاضر' || status === 'متأخر') {
-                        st.presentDays = Number(st.presentDays || 0) + 1;
+                    const status = tr.querySelector('.att-status-select').value;
+                    const previousStatus = st.attendanceStatus;
+                    st.attendanceStatus = status;
+
+                    if (st.lastAttendanceDate !== today) {
+                        if (status === 'غائب') {
+                            st.absentDays = Number(st.absentDays || 0) + 1;
+                        } else if (status === 'حاضر' || status === 'متأخر') {
+                            st.presentDays = Number(st.presentDays || 0) + 1;
+                        }
+                        st.lastAttendanceDate = today;
+                    } else if (previousStatus !== status) {
+                        if (previousStatus === 'غائب' && status !== 'غائب') {
+                            st.absentDays = Math.max(0, Number(st.absentDays || 0) - 1);
+                        } else if (previousStatus !== 'غائب' && status === 'غائب') {
+                            st.absentDays = Number(st.absentDays || 0) + 1;
+                        }
                     }
-                    st.lastAttendanceDate = today;
-                } else if (previousStatus !== status) {
-                    if (previousStatus === 'غائب' && status !== 'غائب') {
-                        st.absentDays = Math.max(0, Number(st.absentDays || 0) - 1);
-                    } else if (previousStatus !== 'غائب' && status === 'غائب') {
-                        st.absentDays = Number(st.absentDays || 0) + 1;
+
+                    if (cloudStorage && st.id) {
+                        try {
+                            await cloudStorage.supervisorMarkStudentAttendance({
+                                studentId: String(st.id),
+                                halaqaId: ring.id || null,
+                                status: arAttendanceToCode(status),
+                                recordDate: today
+                            });
+                        } catch (err) {
+                            console.warn('تعذر حفظ التحضير السحابي للطالب:', err);
+                        }
                     }
+
+                    logs.unshift({
+                        ringName: ringName,
+                        studentName: st.name,
+                        status: status,
+                        date: today
+                    });
+
+                    summary.push(`${st.name}: ${status}`);
                 }
 
-                logs.unshift({
-                    ringName: ringName,
-                    studentName: st.name,
-                    status: status,
-                    date: today
-                });
+                localStorage.setItem('mamma_rings', JSON.stringify(rings));
+                localStorage.setItem('mamma_student_attendance', JSON.stringify(logs.slice(0, 1000)));
 
-                summary.push(`${st.name}: ${status}`);
-            });
+                const actor = sessionStorage.getItem('current_user_name') || localStorage.getItem('current_user_name') || 'التحضير';
+                if (typeof syncToCloud === 'function') {
+                    syncToCloud(
+                        'تحضير غياب طلاب',
+                        actor,
+                        `الحلقة: ${ringName} | التاريخ: ${today} | ${summary.join(' - ')}`,
+                        { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.ATTENDANCE : undefined }
+                    );
+                }
 
-            localStorage.setItem('mamma_rings', JSON.stringify(rings));
-            localStorage.setItem('mamma_student_attendance', JSON.stringify(logs.slice(0, 1000)));
-
-            const actor = localStorage.getItem('current_user_name') || 'التحضير';
-            if (typeof syncToCloud === 'function') {
-                syncToCloud(
-                    'تحضير غياب طلاب',
-                    actor,
-                    `الحلقة: ${ringName} | التاريخ: ${today} | ${summary.join(' - ')}`,
-                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.ATTENDANCE : undefined }
-                );
+                alert('تم حفظ التحضير ومزامنته بنجاح.');
+            } finally {
+                if (saveBtn) saveBtn.disabled = false;
             }
-
-            alert('تم حفظ التحضير ومزامنته مع السحابة بنجاح.');
         }
 
-        function logout() {
+        async function logout() {
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.logout();
+                } catch {}
+            }
+            sessionStorage.removeItem('current_user_role');
+            sessionStorage.removeItem('current_user_name');
             localStorage.removeItem('current_user_role');
             localStorage.removeItem('current_user_name');
             window.location.href = 'index.html';
