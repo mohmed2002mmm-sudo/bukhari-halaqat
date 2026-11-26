@@ -48,7 +48,8 @@
             align-items: center;
             gap: 8px;
         }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.65; cursor: not-allowed; }
         .btn-danger { background-color: var(--danger); }
 
         .card {
@@ -69,6 +70,16 @@
             gap: 8px;
         }
 
+        .halaqa-banner {
+            background: var(--accent);
+            color: var(--primary);
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 1.05rem;
+            margin-bottom: 14px;
+        }
+
         .form-group { margin-bottom: 15px; text-align: right; }
         .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--dark); font-size: 0.95rem; }
         .form-control {
@@ -84,9 +95,19 @@
         .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         .data-table th, .data-table td { padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6; font-size: 0.9rem; }
         .data-table th { background-color: #f1f3f5; color: var(--primary); }
+
+        .color-dot {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 0, 0, 0.12);
+            vertical-align: middle;
+        }
     </style>
 
     <!-- ربط ملف التخزين المركزي السحابي -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="storage.js"></script>
 </head>
 <body>
@@ -105,42 +126,63 @@
 
     <div class="container">
 
-        <!-- إرسال رسالة أو بلاغ للإدارة -->
+        <!-- 1. تسجيل حضور وغياب المعلم -->
         <div class="card">
-            <h3><i class="fa-solid fa-paper-plane"></i> إرسال رسالة أو ملاحظة للإدارة</h3>
-            <div class="form-group">
-                <label>اسم المعلم</label>
-                <input type="text" id="teacher-sender-name" class="form-control" placeholder="اكتب اسمك الثلاثي" oninput="loadTeacherRings()">
+            <h3><i class="fa-solid fa-fingerprint"></i> تسجيل حضور وغياب المعلم</h3>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <button type="button" id="teacher-present-btn" class="btn" onclick="markTeacherAttendance('present')">
+                    <i class="fa-solid fa-user-check"></i> تسجيل حضور
+                </button>
+                <button type="button" id="teacher-absent-btn" class="btn btn-danger" onclick="markTeacherAttendance('absent')">
+                    <i class="fa-solid fa-user-xmark"></i> تسجيل غياب
+                </button>
+                <span id="teacher-attendance-status" style="font-weight: 700; color: var(--secondary);"></span>
             </div>
-            <div class="form-group">
-                <label>نص الرسالة أو الملاحظة</label>
-                <textarea id="teacher-message-text" rows="3" class="form-control" placeholder="اكتب رسالتك أو بلاغك للإدارة هنا..."></textarea>
-            </div>
-            <button type="button" class="btn" onclick="sendTeacherMessage()">
-                <i class="fa-solid fa-paper-plane"></i> إرسال للإدارة ومزامنة سحابياً
-            </button>
         </div>
 
-        <!-- عرض طلاب الحلقة ومتابعتهم -->
+        <!-- 2. رسالة للإدارة -->
         <div class="card">
-            <h3><i class="fa-solid fa-users"></i> طلاب الحلقات المسجلة</h3>
+            <h3><i class="fa-solid fa-paper-plane"></i> رسالة للإدارة</h3>
             <div class="form-group">
-                <label>اختر الحلقة</label>
-                <select id="teacher-ring-select" class="form-control" onchange="loadTeacherStudents()">
-                    <option value="">-- اختر الحلقة --</option>
-                </select>
+                <label>اسم المعلم</label>
+                <input type="text" id="teacher-sender-name" class="form-control" placeholder="اكتب اسمك الثلاثي">
             </div>
+            <div class="form-group">
+                <label>نص الرسالة للإدارة</label>
+                <textarea id="teacher-message-text" rows="3" class="form-control" placeholder="اكتب رسالتك للإدارة هنا..."></textarea>
+            </div>
+            <button type="button" class="btn" onclick="sendTeacherMessage()">
+                <i class="fa-solid fa-paper-plane"></i> إرسال للإدارة
+            </button>
+
+            <table class="data-table" style="margin-top: 18px;">
+                <thead>
+                    <tr>
+                        <th>الرسالة</th>
+                        <th>رد الإدارة</th>
+                        <th>التاريخ</th>
+                    </tr>
+                </thead>
+                <tbody id="teacher-messages-history-body">
+                    <tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد رسائل سابقة.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 3. اسم الحلقة وتحتها الطلاب (الاسم، رقم ولي الأمر، واللون فقط) -->
+        <div class="card">
+            <h3><i class="fa-solid fa-users"></i> حلقتي وطلابي</h3>
+            <div id="teacher-halaqa-name-banner" class="halaqa-banner">الحلقة: جاري التحميل...</div>
             <table class="data-table">
                 <thead>
                     <tr>
                         <th>اسم الطالب</th>
-                        <th>المرحلة</th>
-                        <th>الحالة</th>
-                        <th>النقاط</th>
+                        <th>رقم ولي الأمر</th>
+                        <th>اللون</th>
                     </tr>
                 </thead>
                 <tbody id="teacher-students-body">
-                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">اختر الحلقة لعرض الطلاب.</td></tr>
+                    <tr><td colspan="3" style="text-align: center; color: var(--gray);">جاري تحميل بيانات الطلاب...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -148,6 +190,36 @@
     </div>
 
     <script>
+        let cloudStorage = null;
+
+        function getSupabaseClient() {
+            if (window.bukhariSupabase) return window.bukhariSupabase;
+            if (window.supabaseClient) return window.supabaseClient;
+
+            const cfg = window.BUKHARI_SUPABASE_CONFIG || {};
+            const url = cfg.url || localStorage.getItem('bukhari_supabase_url') || '';
+            const anonKey = cfg.anonKey || localStorage.getItem('bukhari_supabase_anon_key') || '';
+
+            if (url && anonKey && window.supabase && typeof window.supabase.createClient === 'function') {
+                window.bukhariSupabase = window.supabase.createClient(url, anonKey);
+                return window.bukhariSupabase;
+            }
+            return null;
+        }
+
+        function initCloudStorage() {
+            const sb = getSupabaseClient();
+            if (sb && typeof createBukhariStorage === 'function') {
+                try {
+                    cloudStorage = createBukhariStorage(sb);
+                    return cloudStorage;
+                } catch (e) {
+                    console.warn('تعذر تهيئة التخزين السحابي:', e);
+                }
+            }
+            return null;
+        }
+
         function escapeHtml(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -155,6 +227,27 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
+        }
+
+        function getLocalDateKey() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function colorCodeToHex(code) {
+            if (code === 'yellow') return '#eab308';
+            if (code === 'red') return '#dc2626';
+            return '#16a34a';
+        }
+
+        function arColorToHex(arColor) {
+            const v = String(arColor || '').trim();
+            if (v === 'أصفر' || v === 'yellow') return '#eab308';
+            if (v === 'أحمر' || v === 'red' || v === 'برتقالي' || v === 'orange') return '#dc2626';
+            return '#16a34a';
         }
 
         function normalizeTeacherName(name) {
@@ -173,105 +266,158 @@
             if (inputName && inputName.value.trim()) {
                 return inputName.value.trim();
             }
-            return localStorage.getItem('current_user_name') || '';
+            return sessionStorage.getItem('current_user_name') || localStorage.getItem('current_user_name') || 'المعلم';
         }
 
-        function isRingAssignedToTeacher(ring, teacherName) {
-            const target = normalizeTeacherName(teacherName);
-            if (!target || target === 'المعلم') return false;
-
-            const ringTeacher = normalizeTeacherName(
-                ring.teacher || ring.teacherName || ring.instructor || ''
-            );
-            const ringLabel = normalizeTeacherName(ring.name || ring.ringName || '');
-
-            if (
-                ringTeacher &&
-                (ringTeacher === target || ringTeacher.includes(target) || target.includes(ringTeacher))
-            ) {
-                return true;
+        function checkTeacherAttendanceState() {
+            const userName = getActiveTeacherName();
+            const key = `teacher_attendance_${userName}_${getLocalDateKey()}`;
+            const saved = localStorage.getItem(key);
+            const statusEl = document.getElementById('teacher-attendance-status');
+            if (saved && statusEl) {
+                statusEl.textContent = `حالة اليوم: ${saved}`;
             }
-
-            if (ringLabel && ringLabel.includes(target)) {
-                return true;
-            }
-
-            return false;
         }
 
-        window.onload = function() {
-            const savedName = localStorage.getItem('current_user_name') || 'المعلم';
-            document.getElementById('header-user-name').innerText = savedName;
-            const senderInput = document.getElementById('teacher-sender-name');
-            if (senderInput && savedName && savedName !== 'المعلم') {
-                senderInput.value = savedName;
-            }
-            loadTeacherRings();
-        };
+        async function markTeacherAttendance(mode) {
+            const userName = getActiveTeacherName();
+            const todayKey = getLocalDateKey();
+            const nowTime = new Date().toLocaleTimeString('ar-SA');
+            const label = mode === 'absent' ? 'غائب' : 'حاضر';
 
-        function loadTeacherRings() {
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const select = document.getElementById('teacher-ring-select');
-            const tbody = document.getElementById('teacher-students-body');
-            if (!select) return;
-
-            const teacherName = getActiveTeacherName();
-            const assignedRings = rings.filter(r => r && r.name && isRingAssignedToTeacher(r, teacherName));
-
-            select.innerHTML = '<option value="">-- اختر الحلقة --</option>';
-
-            if (assignedRings.length === 0) {
-                select.innerHTML = '<option value="">-- لا توجد حلقة مرتبطة بهذا المعلم --</option>';
-                if (tbody) {
-                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد حلقات مرتبطة بحساب المعلم الحالي.</td></tr>`;
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.recordOwnStaffAttendance(mode === 'absent' ? 'absent' : 'present', todayKey);
+                } catch (err) {
+                    alert(err?.message || 'تعذر تسجيل الحضور في السحابة.');
+                    return;
                 }
-                return;
             }
 
-            assignedRings.forEach(r => {
-                const opt = document.createElement('option');
-                opt.value = r.name;
-                opt.textContent = r.name + (r.teacher ? ` (${r.teacher})` : '');
-                select.appendChild(opt);
+            localStorage.setItem(`teacher_attendance_${userName}_${todayKey}`, `${label} (${nowTime})`);
+            const statusEl = document.getElementById('teacher-attendance-status');
+            if (statusEl) statusEl.textContent = `حالة اليوم: ${label} (${nowTime})`;
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    `تسجيل ${label} معلم`,
+                    userName,
+                    `التاريخ: ${todayKey} | الوقت: ${nowTime}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAFF_ATTENDANCE : undefined }
+                );
+            }
+
+            alert(`تم تسجيل (${label}) بنجاح.`);
+        }
+
+        async function loadTeacherHalaqaAndStudents() {
+            const banner = document.getElementById('teacher-halaqa-name-banner');
+            const tbody = document.getElementById('teacher-students-body');
+
+            if (cloudStorage) {
+                try {
+                    const result = await cloudStorage.teacherGetMyHalaqaAndStudents();
+                    const halaqaName = result?.halaqa?.name || 'لا توجد حلقة مرتبطة بهذا المعلم';
+                    banner.textContent = `الحلقة: ${halaqaName}`;
+
+                    const students = result?.students || [];
+                    if (students.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد بيانات طلاب في هذه الحلقة.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = students.map(st => {
+                        const hex = st.color_hex || colorCodeToHex(st.status_color);
+                        return `
+                            <tr>
+                                <td><strong>${escapeHtml(st.full_name)}</strong></td>
+                                <td>${escapeHtml(st.guardian_phone || '-')}</td>
+                                <td><span class="color-dot" style="background-color: ${hex};"></span></td>
+                            </tr>
+                        `;
+                    }).join('');
+                    return;
+                } catch (err) {
+                    console.warn('تعذر جلب حلقة المعلم من الدالة السحابية:', err);
+                }
+            }
+
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const teacherName = getActiveTeacherName();
+            const target = normalizeTeacherName(teacherName);
+
+            const ring = rings.find(r => {
+                if (!r || !r.name) return false;
+                const rt = normalizeTeacherName(r.teacher || r.teacherName || r.instructor || '');
+                const rl = normalizeTeacherName(r.name || '');
+                return (rt && (rt === target || rt.includes(target) || target.includes(rt))) || (target && rl.includes(target));
             });
 
-            if (assignedRings.length === 1) {
-                select.value = assignedRings[0].name;
-                loadTeacherStudents();
-            } else if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">اختر الحلقة لعرض الطلاب.</td></tr>`;
+            if (!ring) {
+                banner.textContent = 'الحلقة: لا توجد حلقة مرتبطة بهذا المعلم';
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد حلقات مرتبطة بحساب المعلم الحالي.</td></tr>`;
+                return;
             }
+
+            banner.textContent = `الحلقة: ${ring.name}`;
+            const stList = Array.isArray(ring.studentsData) ? ring.studentsData : [];
+            if (stList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد بيانات طلاب في هذه الحلقة.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = stList.map(st => {
+                const hex = arColorToHex(st.status);
+                return `
+                    <tr>
+                        <td><strong>${escapeHtml(st.name)}</strong></td>
+                        <td>${escapeHtml(st.parentPhone || '-')}</td>
+                        <td><span class="color-dot" style="background-color: ${hex};"></span></td>
+                    </tr>
+                `;
+            }).join('');
         }
 
-        function loadTeacherStudents() {
-            const ringName = document.getElementById('teacher-ring-select').value;
-            const tbody = document.getElementById('teacher-students-body');
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const teacherName = getActiveTeacherName();
+        async function renderTeacherMessagesHistory() {
+            const tbody = document.getElementById('teacher-messages-history-body');
+            if (!tbody) return;
 
-            const ring = rings.find(r => r && r.name === ringName && isRingAssignedToTeacher(r, teacherName));
-
-            if (!ring) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">اختر حلقتك لعرض الطلاب.</td></tr>`;
-                return;
+            if (cloudStorage) {
+                try {
+                    const cloudMsgs = await cloudStorage.listMySentMessages();
+                    if (cloudMsgs && cloudMsgs.length > 0) {
+                        tbody.innerHTML = cloudMsgs.map(m => {
+                            const dt = m.created_at ? new Date(m.created_at).toLocaleString('ar-SA') : '-';
+                            return `
+                                <tr>
+                                    <td>${escapeHtml(m.message_body)}</td>
+                                    <td>${escapeHtml(m.reply_body || 'بانتظار رد الإدارة')}</td>
+                                    <td><small style="color: var(--gray);">${escapeHtml(dt)}</small></td>
+                                </tr>
+                            `;
+                        }).join('');
+                        return;
+                    }
+                } catch {}
             }
 
-            if (!Array.isArray(ring.studentsData) || ring.studentsData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد بيانات طلاب في هذه الحلقة.</td></tr>`;
+            const messages = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
+            const currentName = getActiveTeacherName();
+            const mine = messages.filter(m => !currentName || m.teacher === currentName);
+            if (mine.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد رسائل سابقة.</td></tr>`;
                 return;
             }
-
-            tbody.innerHTML = ring.studentsData.map(st => `
+            tbody.innerHTML = mine.map(m => `
                 <tr>
-                    <td><strong>${escapeHtml(st.name)}</strong></td>
-                    <td>${escapeHtml(st.grade || '-')}</td>
-                    <td>${escapeHtml(st.status || 'أخضر')}</td>
-                    <td><strong>${Number(st.points || 0)}</strong></td>
+                    <td>${escapeHtml(m.text)}</td>
+                    <td>-</td>
+                    <td><small style="color: var(--gray);">${escapeHtml(m.time || '-')}</small></td>
                 </tr>
             `).join('');
         }
 
-        function sendTeacherMessage() {
+        async function sendTeacherMessage() {
             const teacherName = getActiveTeacherName() || 'المعلم';
             const textEl = document.getElementById('teacher-message-text');
             const text = textEl ? textEl.value.trim() : '';
@@ -279,6 +425,15 @@
             if (!text) {
                 alert('يرجى كتابة نص الرسالة قبل الإرسال.');
                 return;
+            }
+
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.sendMessageToAdministration(text, `رسالة من المعلم ${teacherName}`);
+                } catch (err) {
+                    alert(err?.message || 'تعذر إرسال الرسالة في السحابة.');
+                    return;
+                }
             }
 
             const timeStr = new Date().toLocaleString('ar-SA');
@@ -304,10 +459,61 @@
             }
 
             textEl.value = '';
-            alert('تم إرسال الرسالة إلى الإدارة ومزامنتها مع السحابة بنجاح.');
+            await renderTeacherMessagesHistory();
+            alert('تم إرسال الرسالة إلى الإدارة بنجاح.');
         }
 
-        function logout() {
+        window.onload = async function() {
+            const storage = initCloudStorage();
+            if (storage) {
+                try {
+                    const profile = await storage.getCurrentStaffProfile();
+                    const roleLower = String(profile.role || '').toLowerCase();
+                    if (roleLower === 'admin' || roleLower === 'general_manager' || roleLower === 'gm') {
+                        window.location.replace('system.html');
+                        return;
+                    }
+                    if (roleLower === 'supervisor') {
+                        window.location.replace('admin.html');
+                        return;
+                    }
+                    if (roleLower === 'monitor') {
+                        window.location.replace('supervisor.html');
+                        return;
+                    }
+                    if (roleLower !== 'teacher') {
+                        window.location.replace('index.html');
+                        return;
+                    }
+                    sessionStorage.setItem('current_user_name', profile.full_name);
+                    sessionStorage.setItem('current_user_role', profile.role);
+                    localStorage.setItem('current_user_name', profile.full_name);
+                    localStorage.setItem('current_user_role', profile.role);
+                } catch {
+                    // السماح بالاستمرار في وضع التوافق المحلي عند عدم توفر جلسة سحابية مفعّلة
+                }
+            }
+
+            const savedName = sessionStorage.getItem('current_user_name') || localStorage.getItem('current_user_name') || 'المعلم';
+            document.getElementById('header-user-name').innerText = savedName;
+            const senderInput = document.getElementById('teacher-sender-name');
+            if (senderInput && savedName && savedName !== 'المعلم') {
+                senderInput.value = savedName;
+            }
+
+            checkTeacherAttendanceState();
+            await loadTeacherHalaqaAndStudents();
+            await renderTeacherMessagesHistory();
+        };
+
+        async function logout() {
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.logout();
+                } catch {}
+            }
+            sessionStorage.removeItem('current_user_role');
+            sessionStorage.removeItem('current_user_name');
             localStorage.removeItem('current_user_role');
             localStorage.removeItem('current_user_name');
             window.location.href = 'index.html';
