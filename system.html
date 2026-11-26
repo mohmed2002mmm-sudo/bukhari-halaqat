@@ -48,7 +48,8 @@
             align-items: center;
             gap: 6px;
         }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.65; cursor: not-allowed; }
         .btn-danger { background-color: var(--danger); }
         .btn-warning { background-color: var(--warning); color: #000; }
         .btn-info { background-color: #0077b6; color: white; }
@@ -126,7 +127,8 @@
         .view-section { display: none; }
     </style>
 
-    <!-- ربط ملف التخزين المركزي السحابي -->
+    <!-- ربط مكتبة Supabase وملف التخزين المركزي السحابي -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="storage.js"></script>
 </head>
 <body>
@@ -150,7 +152,7 @@
                 <div class="stats-box" id="employees-attendance-box">نسبة حضور المعلمين والموظفين: 0% | حضور: 0 | غياب: 0</div>
             </div>
 
-            <!-- تسجيل الحضور والانصراف للمدير العام -->
+            <!-- تسجيل الحضور والانصراف للمدير العام / الأدمن -->
             <div class="card">
                 <h3><i class="fa-solid fa-fingerprint"></i> تسجيل الحضور والانصراف للمدير العام</h3>
                 <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
@@ -217,14 +219,14 @@
                         <input type="text" id="emp-fullname" class="form-control" placeholder="الاسم الكامل">
                     </div>
                     <div class="form-group">
-                        <label>اسم المستخدم (للدخول)</label>
-                        <input type="text" id="emp-username" class="form-control" placeholder="اسم المستخدم بالإنجليزية">
+                        <label>اسم المستخدم / المعرف الوظيفي (للدخول)</label>
+                        <input type="text" id="emp-username" class="form-control" placeholder="مثال: TCH01 أو ADM01">
                     </div>
                 </div>
                 <div class="grid-2">
                     <div class="form-group">
                         <label>كلمة المرور</label>
-                        <input type="password" id="emp-password" class="form-control" placeholder="كلمة المرور">
+                        <input type="password" id="emp-password" class="form-control" placeholder="كلمة المرور (6 أحرف فأكثر)">
                     </div>
                     <div class="form-group">
                         <label>الصلاحية / الدور</label>
@@ -255,20 +257,21 @@
                 </table>
             </div>
 
-            <!-- إدارة حلقات المجمع وإضافة وتعديل بياناتها -->
+            <!-- إدارة حلقات المجمع وإضافة وتعديل بياناتها وربطها بالشيخ -->
             <div class="card">
-                <h3><i class="fa-solid fa-building-columns"></i> إدارة حلقات المجمع (إضافة وتعديل)</h3>
+                <h3><i class="fa-solid fa-building-columns"></i> إدارة حلقات المجمع (إضافة وتعديل وربط بالشيخ)</h3>
                 <div class="grid-2">
                     <div class="form-group">
                         <label>اسم الحلقة الجديدة</label>
                         <input type="text" id="ring-name-input" class="form-control" placeholder="مثال: حلقة الإمام عاصم">
                     </div>
                     <div class="form-group">
-                        <label>اسم المعلم المسؤول</label>
-                        <input type="text" id="ring-teacher-input" class="form-control" placeholder="اسم المعلم">
+                        <label>الشيخ / المعلم المسؤول (اختر معلم أو اكتب معرّفه الوظيفي)</label>
+                        <input type="text" id="ring-teacher-input" list="teachers-datalist" class="form-control" placeholder="مثال: TCH01 أو اسم الشيخ">
+                        <datalist id="teachers-datalist"></datalist>
                     </div>
                 </div>
-                <button type="button" class="btn" onclick="addNewRing()"><i class="fa-solid fa-plus"></i> إضافة الحلقة</button>
+                <button type="button" class="btn" onclick="addNewRing()"><i class="fa-solid fa-plus"></i> إضافة الحلقة وربطها بالشيخ</button>
 
                 <hr style="margin: 20px 0; border: 0; border-top: 1px solid #dee2e6;">
 
@@ -289,6 +292,60 @@
     </div>
 
     <script>
+        let cloudStorage = null;
+        let cloudClient = null;
+
+        function getSupabaseClient() {
+            if (window.bukhariSupabase) return window.bukhariSupabase;
+            if (window.supabaseClient) return window.supabaseClient;
+
+            const cfg = window.BUKHARI_SUPABASE_CONFIG || {};
+            const url = cfg.url || localStorage.getItem('bukhari_supabase_url') || '';
+            const anonKey = cfg.anonKey || localStorage.getItem('bukhari_supabase_anon_key') || '';
+
+            if (url && anonKey && window.supabase && typeof window.supabase.createClient === 'function') {
+                window.bukhariSupabase = window.supabase.createClient(url, anonKey);
+                return window.bukhariSupabase;
+            }
+            return null;
+        }
+
+        function initCloudStorage() {
+            const sb = getSupabaseClient();
+            if (sb && typeof createBukhariStorage === 'function') {
+                try {
+                    cloudClient = sb;
+                    cloudStorage = createBukhariStorage(sb);
+                    return cloudStorage;
+                } catch (e) {
+                    console.warn('تعذر تهيئة التخزين السحابي:', e);
+                }
+            }
+            return null;
+        }
+
+        function isAdminOrManagerRole(role) {
+            const r = String(role || '').trim().toLowerCase();
+            return ['admin', 'general_manager', 'gm', 'مدير عام', 'manager', 'أدمن'].includes(r);
+        }
+
+        function arRoleToDbRole(arRole) {
+            const r = String(arRole || '').trim().toLowerCase();
+            if (['admin', 'general_manager', 'gm', 'مدير عام', 'manager', 'أدمن'].includes(r)) return 'admin';
+            if (['supervisor', 'إداري'].includes(r)) return 'supervisor';
+            if (['monitor', 'مشرف حلقة', 'مشرف'].includes(r)) return 'monitor';
+            return 'teacher';
+        }
+
+        function dbRoleToArRole(dbRole) {
+            const r = String(dbRole || '').trim().toLowerCase();
+            if (r === 'admin' || r === 'general_manager' || r === 'gm') return 'مدير عام';
+            if (r === 'supervisor') return 'إداري';
+            if (r === 'monitor') return 'مشرف حلقة';
+            if (r === 'teacher') return 'معلم';
+            return dbRole || 'موظف';
+        }
+
         function escapeHtml(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -315,7 +372,7 @@
 
         function getActiveManagerName() {
             const headerName = document.getElementById('header-user-name').innerText.trim();
-            return localStorage.getItem('current_user_name') || headerName || 'المدير العام';
+            return sessionStorage.getItem('current_user_name') || localStorage.getItem('current_user_name') || headerName || 'المدير العام';
         }
 
         function getManagerShiftKeys() {
@@ -327,16 +384,102 @@
             };
         }
 
-        window.onload = function() {
+        async function syncAdminDataFromCloud() {
+            if (!cloudStorage || !cloudClient) return;
+            try {
+                const [staffRows, halaqatRows] = await Promise.all([
+                    cloudStorage.adminListStaff(),
+                    cloudStorage.adminListHalaqat()
+                ]);
+
+                const mappedStaff = (staffRows || []).map(s => ({
+                    userId: s.user_id,
+                    fullname: s.full_name,
+                    username: s.staff_id,
+                    password: '••••••',
+                    role: dbRoleToArRole(s.role),
+                    rawRole: s.role,
+                    status: s.is_active ? 'نشط' : 'مجمد'
+                }));
+                localStorage.setItem('mamma_employees', JSON.stringify(mappedStaff));
+
+                const staffById = {};
+                (staffRows || []).forEach(s => {
+                    staffById[String(s.staff_id || '').toUpperCase()] = s.full_name;
+                });
+
+                const existingRings = getRings();
+                const existingById = {};
+                existingRings.forEach(r => {
+                    if (r.id !== undefined) existingById[String(r.id)] = r;
+                });
+
+                const mappedRings = (halaqatRows || []).map(h => {
+                    const prev = existingById[String(h.id)] || {};
+                    const teacherStaffId = h.teacher_staff_id || '';
+                    const teacherLabel = teacherStaffId
+                        ? (staffById[teacherStaffId.toUpperCase()] ? `${staffById[teacherStaffId.toUpperCase()]} (${teacherStaffId})` : teacherStaffId)
+                        : (prev.teacher || 'غير محدد');
+                    return {
+                        id: h.id,
+                        name: h.name,
+                        teacher: teacherLabel,
+                        teacherStaffId: teacherStaffId,
+                        attendanceRate: prev.attendanceRate || '%',
+                        absenceRate: prev.absenceRate || '%',
+                        totalPoints: prev.totalPoints || '0 نقطة',
+                        studentsCount: prev.studentsCount || '0 طالباً',
+                        studentsData: prev.studentsData || []
+                    };
+                });
+                localStorage.setItem('mamma_rings', JSON.stringify(mappedRings));
+            } catch (err) {
+                console.warn('تعذر مزامنة بيانات الأدمن من السحابة:', err);
+            }
+        }
+
+        function populateTeachersDatalist() {
+            const dl = document.getElementById('teachers-datalist');
+            if (!dl) return;
+            const emps = getEmployees().filter(e => e.role === 'معلم' || e.rawRole === 'teacher');
+            dl.innerHTML = emps.map(e => `<option value="${escapeHtml(e.username)}">${escapeHtml(e.fullname)}</option>`).join('');
+        }
+
+        window.onload = async function() {
+            const storage = initCloudStorage();
+            if (storage) {
+                try {
+                    const profile = await storage.getCurrentStaffProfile();
+                    if (!isAdminOrManagerRole(profile.role)) {
+                        const r = String(profile.role || '').toLowerCase();
+                        if (r === 'supervisor') window.location.replace('admin.html');
+                        else if (r === 'teacher') window.location.replace('teacher.html');
+                        else if (r === 'monitor') window.location.replace('supervisor.html');
+                        else window.location.replace('index.html');
+                        return;
+                    }
+                    sessionStorage.setItem('current_user_name', profile.full_name);
+                    sessionStorage.setItem('current_user_role', profile.role);
+                    localStorage.setItem('current_user_name', profile.full_name);
+                    localStorage.setItem('current_user_role', profile.role);
+                } catch {
+                    // السماح بالاستمرار في وضع التوافق المحلي عند عدم توفر جلسة سحابية مفعّلة
+                }
+            }
+
             const currentName = getActiveManagerName();
             document.getElementById('header-user-name').innerText = currentName;
             document.getElementById('section-manager').style.display = 'block';
+
+            await syncAdminDataFromCloud();
+            populateTeachersDatalist();
             refreshManagerView();
 
             setInterval(checkManagerShift, 60000);
         };
 
         function refreshManagerView() {
+            populateTeachersDatalist();
             checkManagerShift();
             loadEmployeesTable();
             loadRingsTable();
@@ -377,11 +520,19 @@
             }
         }
 
-        function markManagerShift(type) {
+        async function markManagerShift(type) {
             const nowTime = new Date().toLocaleTimeString('ar-SA');
             const todayKey = getLocalDateKey();
             const managerName = getActiveManagerName();
             const { startKey, endKey } = getManagerShiftKeys();
+
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.recordOwnStaffAttendance('present', todayKey);
+                } catch (err) {
+                    console.warn('تعذر تسجيل دوام المدير في السحابة:', err);
+                }
+            }
 
             if (type === 'start') {
                 const btn = document.getElementById('manager-start-btn');
@@ -481,9 +632,19 @@
         function getRings() { return JSON.parse(localStorage.getItem('mamma_rings') || '[]'); }
         function saveRings(rings) { localStorage.setItem('mamma_rings', JSON.stringify(rings)); }
 
-        function updateStudentsAttendanceStats() {
+        async function updateStudentsAttendanceStats() {
             const box = document.getElementById('students-attendance-box');
             if (!box) return;
+
+            if (cloudStorage) {
+                try {
+                    const stats = await cloudStorage.adminGetSummaryStats();
+                    const absentRate = Number(stats.studentAbsenceRate || 0);
+                    const presentRate = Number(Math.max(0, 100 - absentRate).toFixed(1));
+                    box.innerHTML = `نسبة حضور الطلاب: <strong>${presentRate}%</strong> | نسبة غياب الطلاب: <strong>${absentRate}%</strong>`;
+                    return;
+                } catch {}
+            }
 
             const rings = getRings();
             const studentAttendanceLogs = JSON.parse(localStorage.getItem('mamma_student_attendance') || localStorage.getItem('mamma_attendance_logs') || '[]');
@@ -671,7 +832,7 @@
             alert(`تم اعتماد رسالة المعلم (${teacherName}) بنجاح.`);
         }
 
-        function addNewEmployee() {
+        async function addNewEmployee() {
             const fullname = document.getElementById('emp-fullname').value.trim();
             const username = document.getElementById('emp-username').value.trim();
             const password = document.getElementById('emp-password').value.trim();
@@ -680,6 +841,27 @@
             if (!fullname || !username || !password) {
                 alert('يرجى تعبئة جميع حقول الموظف.');
                 return;
+            }
+
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.adminCreateStaff({
+                        staffId: username,
+                        fullName: fullname,
+                        role: arRoleToDbRole(role),
+                        password: password
+                    });
+                    await syncAdminDataFromCloud();
+                    alert(`تمت إضافة (${fullname}) وإتاحة دخوله سحابياً بنجاح.`);
+                    document.getElementById('emp-fullname').value = '';
+                    document.getElementById('emp-username').value = '';
+                    document.getElementById('emp-password').value = '';
+                    refreshManagerView();
+                    return;
+                } catch (err) {
+                    alert(err?.message || 'تعذر إضافة الموظف في السحابة.');
+                    return;
+                }
             }
 
             const emps = getEmployees();
@@ -751,7 +933,7 @@
             });
         }
 
-        function editEmployee(index) {
+        async function editEmployee(index) {
             const emps = getEmployees();
             const emp = emps[index];
             if (!emp) return;
@@ -760,19 +942,27 @@
             const newFullname = prompt('تعديل الاسم الشخصي للموظف / المعلم:', emp.fullname);
             if (newFullname === null) return;
 
-            const newUsername = prompt('تعديل اسم المستخدم:', emp.username);
+            const newUsername = prompt('تعديل اسم المستخدم / المعرف:', emp.username);
             if (newUsername === null) return;
-
-            const newPassword = prompt('تعديل كلمة المرور:', emp.password);
-            if (newPassword === null) return;
 
             const newRole = prompt('تعديل الصلاحية / الدور (معلم، إداري، مشرف حلقة، مدير عام):', emp.role);
             if (newRole === null) return;
 
             emp.fullname = newFullname.trim() || emp.fullname;
             emp.username = newUsername.trim() || emp.username;
-            emp.password = newPassword.trim() || emp.password;
             emp.role = newRole.trim() || emp.role;
+
+            if (cloudStorage && emp.userId) {
+                try {
+                    await cloudStorage.adminUpdateStaffProfile(emp.userId, {
+                        fullName: emp.fullname,
+                        role: arRoleToDbRole(emp.role)
+                    });
+                } catch (err) {
+                    alert(err?.message || 'تعذر تحديث بيانات الموظف في السحابة.');
+                    return;
+                }
+            }
 
             emps[index] = emp;
             saveEmployees(emps);
@@ -808,7 +998,7 @@
             if (!passSpan || !eyeBtn) return;
 
             if (passSpan.innerText === '••••••') {
-                passSpan.textContent = String(emp.password || '');
+                passSpan.textContent = emp.userId ? 'محمي في Supabase' : String(emp.password || '');
                 passSpan.style.letterSpacing = 'normal';
                 eyeBtn.classList.remove('fa-eye');
                 eyeBtn.classList.add('fa-eye-slash');
@@ -820,12 +1010,23 @@
             }
         }
 
-        function changeEmpRole(index) {
+        async function changeEmpRole(index) {
             const emps = getEmployees();
             if (!emps[index]) return;
             const newRole = prompt('اختر الصلاحية الجديدة (معلم، إداري، مشرف حلقة، مدير عام):', emps[index].role);
             if (newRole && newRole.trim()) {
                 emps[index].role = newRole.trim();
+                if (cloudStorage && emps[index].userId) {
+                    try {
+                        await cloudStorage.adminUpdateStaffProfile(emps[index].userId, {
+                            fullName: emps[index].fullname,
+                            role: arRoleToDbRole(emps[index].role)
+                        });
+                    } catch (err) {
+                        alert(err?.message || 'تعذر تحديث الصلاحية في السحابة.');
+                        return;
+                    }
+                }
                 saveEmployees(emps);
                 if (typeof syncToCloud === 'function') {
                     syncToCloud(
@@ -840,10 +1041,19 @@
             }
         }
 
-        function toggleFreezeEmp(index) {
+        async function toggleFreezeEmp(index) {
             const emps = getEmployees();
             if (!emps[index]) return;
-            emps[index].status = emps[index].status === 'مجمد' ? 'نشط' : 'مجمد';
+            const nextFrozen = emps[index].status !== 'مجمد';
+            if (cloudStorage && emps[index].userId) {
+                try {
+                    await cloudStorage.adminToggleStaffFreeze(emps[index].userId, nextFrozen);
+                } catch (err) {
+                    alert(err?.message || 'تعذر تحديث حالة الحساب في السحابة.');
+                    return;
+                }
+            }
+            emps[index].status = nextFrozen ? 'مجمد' : 'نشط';
             saveEmployees(emps);
             if (typeof syncToCloud === 'function') {
                 syncToCloud(
@@ -856,12 +1066,20 @@
             refreshManagerView();
         }
 
-        function deleteEmp(index) {
+        async function deleteEmp(index) {
             const emps = getEmployees();
             const deleted = emps[index];
             if (!deleted) return;
 
-            if (confirm(`هل أنت متأكد من نقل الموظف (${deleted.fullname}) إلى الأرشيف؟`)) {
+            if (confirm(`هل أنت متأكد من حذف الموظف (${deleted.fullname}) نهائياً من النظام؟`)) {
+                if (cloudStorage && deleted.userId) {
+                    try {
+                        await cloudStorage.adminDeleteStaff(deleted.userId);
+                    } catch (err) {
+                        alert(err?.message || 'تعذر حذف الموظف من السحابة.');
+                        return;
+                    }
+                }
                 emps.splice(index, 1);
                 saveEmployees(emps);
 
@@ -878,11 +1096,23 @@
                 }
 
                 refreshManagerView();
-                alert('تم نقل الموظف إلى الأرشيف بنجاح ولن يعود للتطبيق.');
+                alert('تم حذف الموظف بنجاح.');
             }
         }
 
-        function addNewRing() {
+        function resolveTeacherStaffId(inputVal) {
+            const raw = String(inputVal || '').trim();
+            if (!raw) return null;
+            const emps = getEmployees();
+            const byId = emps.find(e => String(e.username || '').trim().toLowerCase() === raw.toLowerCase());
+            if (byId) return String(byId.username).trim().toUpperCase();
+            const byName = emps.find(e => String(e.fullname || '').trim() === raw);
+            if (byName && byName.username) return String(byName.username).trim().toUpperCase();
+            if (/^[a-zA-Z0-9_-]{2,20}$/.test(raw)) return raw.toUpperCase();
+            return null;
+        }
+
+        async function addNewRing() {
             const name = document.getElementById('ring-name-input').value.trim();
             const teacher = document.getElementById('ring-teacher-input').value.trim();
 
@@ -891,10 +1121,31 @@
                 return;
             }
 
+            const teacherStaffId = resolveTeacherStaffId(teacher);
+
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.adminCreateHalaqa({
+                        name,
+                        teacherStaffId
+                    });
+                    await syncAdminDataFromCloud();
+                    alert(`تمت إضافة الحلقة (${name}) وربطها بالشيخ بنجاح.`);
+                    document.getElementById('ring-name-input').value = '';
+                    document.getElementById('ring-teacher-input').value = '';
+                    refreshManagerView();
+                    return;
+                } catch (err) {
+                    alert(err?.message || 'تعذر إضافة الحلقة في السحابة.');
+                    return;
+                }
+            }
+
             const rings = getRings();
             rings.push({
                 name,
                 teacher,
+                teacherStaffId,
                 attendanceRate: '%',
                 absenceRate: '%',
                 totalPoints: '0 نقطة',
@@ -944,7 +1195,7 @@
             });
         }
 
-        function editRing(index) {
+        async function editRing(index) {
             const rings = getRings();
             const ring = rings[index];
             if (!ring) return;
@@ -952,11 +1203,28 @@
             const newName = prompt('تعديل اسم الحلقة:', ring.name);
             if (newName === null) return;
 
-            const newTeacher = prompt('تعديل اسم المعلم المسؤول:', ring.teacher);
+            const newTeacher = prompt('تعديل الشيخ / المعلم المسؤول (المعرف الوظيفي أو الاسم):', ring.teacherStaffId || ring.teacher);
             if (newTeacher === null) return;
 
             ring.name = newName.trim() || ring.name;
             ring.teacher = newTeacher.trim() || ring.teacher;
+            const resolvedId = resolveTeacherStaffId(ring.teacher);
+
+            if (cloudStorage && ring.id) {
+                try {
+                    await cloudStorage.adminUpdateHalaqa(ring.id, {
+                        name: ring.name,
+                        teacherStaffId: resolvedId
+                    });
+                    await syncAdminDataFromCloud();
+                    refreshManagerView();
+                    alert('تم تعديل بيانات الحلقة وربط الشيخ بنجاح.');
+                    return;
+                } catch (err) {
+                    alert(err?.message || 'تعذر تعديل الحلقة في السحابة.');
+                    return;
+                }
+            }
 
             rings[index] = ring;
             saveRings(rings);
@@ -982,12 +1250,20 @@
             alert(`📊 تقرير بيانات (${r.name}):\n- المعلم المسؤول: ${r.teacher}\n- عدد الطلاب: ${count} طالباً\n- نسبة الحضور: ${r.attendanceRate || '95%'}\n- نسبة الغياب: ${r.absenceRate || '5%'}\n- إجمالي النقاط: ${r.totalPoints || '0 نقطة'}`);
         }
 
-        function deleteRing(index) {
+        async function deleteRing(index) {
             const rings = getRings();
             const deleted = rings[index];
             if (!deleted) return;
 
-            if (confirm(`هل أنت متأكد من نقل الحلقة (${deleted.name}) وبياناتها إلى الأرشيف؟`)) {
+            if (confirm(`هل أنت متأكد من حذف الحلقة (${deleted.name})؟`)) {
+                if (cloudStorage && deleted.id) {
+                    try {
+                        await cloudStorage.adminDeleteHalaqa(deleted.id);
+                    } catch (err) {
+                        alert(err?.message || 'تعذر حذف الحلقة من السحابة.');
+                        return;
+                    }
+                }
                 rings.splice(index, 1);
                 saveRings(rings);
 
@@ -1004,7 +1280,7 @@
                 }
 
                 refreshManagerView();
-                alert('تم نقل الحلقة إلى الأرشيف بنجاح ولن تعود للتطبيق.');
+                alert('تم حذف الحلقة بنجاح.');
             }
         }
 
@@ -1039,7 +1315,14 @@
             alert(report);
         }
 
-        function logout() {
+        async function logout() {
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.logout();
+                } catch {}
+            }
+            sessionStorage.removeItem('current_user_role');
+            sessionStorage.removeItem('current_user_name');
             localStorage.removeItem('current_user_role');
             localStorage.removeItem('current_user_name');
             window.location.href = 'index.html';
