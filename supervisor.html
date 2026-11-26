@@ -48,8 +48,10 @@
             align-items: center;
             gap: 8px;
         }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.65; cursor: not-allowed; }
         .btn-danger { background-color: var(--danger); }
+        .btn-disabled { background-color: #adb5bd !important; cursor: not-allowed !important; pointer-events: none; opacity: 0.55; }
 
         .card {
             background: white;
@@ -98,9 +100,19 @@
         .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         .data-table th, .data-table td { padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6; font-size: 0.9rem; }
         .data-table th { background-color: #f1f3f5; color: var(--primary); }
+
+        .color-dot {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 0, 0, 0.12);
+            vertical-align: middle;
+        }
     </style>
 
-    <!-- ربط ملف التخزين المركزي السحابي -->
+    <!-- ربط مكتبة Supabase وملف التخزين المركزي السحابي -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="storage.js"></script>
 </head>
 <body>
@@ -119,6 +131,20 @@
 
     <div class="container">
 
+        <!-- تسجيل حضور وغياب المشرف -->
+        <div class="card">
+            <h3><i class="fa-solid fa-fingerprint"></i> تسجيل حضور وغياب المشرف</h3>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <button type="button" id="monitor-present-btn" class="btn" onclick="markMonitorAttendance('present')">
+                    <i class="fa-solid fa-user-check"></i> تسجيل حضور
+                </button>
+                <button type="button" id="monitor-absent-btn" class="btn btn-danger" onclick="markMonitorAttendance('absent')">
+                    <i class="fa-solid fa-user-xmark"></i> تسجيل غياب
+                </button>
+                <span id="monitor-attendance-status" style="font-weight: 700; color: var(--secondary);"></span>
+            </div>
+        </div>
+
         <!-- ملخص سريع للحلقات والطلاب -->
         <div class="grid-2">
             <div class="stats-box" id="supervisor-rings-count">عدد الحلقات المسجلة: 0</div>
@@ -127,23 +153,21 @@
 
         <!-- متابعة الحلقات -->
         <div class="card">
-            <h3><i class="fa-solid fa-building-columns"></i> متابعة الحلقات والمعلمين</h3>
+            <h3><i class="fa-solid fa-building-columns"></i> متابعة الحلقات</h3>
             <table class="data-table">
                 <thead>
                     <tr>
                         <th>اسم الحلقة</th>
-                        <th>المعلم المسؤول</th>
                         <th>عدد الطلاب</th>
-                        <th>نسبة الحضور</th>
                     </tr>
                 </thead>
                 <tbody id="supervisor-rings-body">
-                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد حلقات مضافة حالياً.</td></tr>
+                    <tr><td colspan="2" style="text-align: center; color: var(--gray);">لا توجد حلقات مضافة حالياً.</td></tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- عرض طلاب الحلقة المختارة -->
+        <!-- عرض طلاب الحلقة المختارة (الاسم، النقاط، واللون فقط) -->
         <div class="card">
             <h3><i class="fa-solid fa-users"></i> طلاب الحلقة</h3>
             <div class="form-group">
@@ -156,23 +180,22 @@
                 <thead>
                     <tr>
                         <th>اسم الطالب</th>
-                        <th>المرحلة</th>
-                        <th>الحالة</th>
-                        <th>النقاط</th>
+                        <th>مجموع النقاط</th>
+                        <th>اللون</th>
                     </tr>
                 </thead>
                 <tbody id="supervisor-students-body">
-                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">اختر الحلقة لعرض الطلاب.</td></tr>
+                    <tr><td colspan="3" style="text-align: center; color: var(--gray);">اختر الحلقة لعرض الطلاب.</td></tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- تسجيل ملاحظة إشرافية ومزامنتها -->
+        <!-- إرسال رسالة للإداري ومتابعة الردود -->
         <div class="card">
-            <h3><i class="fa-solid fa-clipboard-check"></i> تسجيل ملاحظة إشرافية</h3>
+            <h3><i class="fa-solid fa-paper-plane"></i> رسالة للإداري</h3>
             <div class="grid-2">
                 <div class="form-group">
-                    <label>الحلقة المستهدفة</label>
+                    <label>الحلقة (اختياري)</label>
                     <select id="supervisor-note-ring" class="form-control">
                         <option value="">-- اختر الحلقة --</option>
                     </select>
@@ -183,11 +206,11 @@
                 </div>
             </div>
             <div class="form-group">
-                <label>نص الملاحظة الإشرافية</label>
-                <textarea id="supervisor-note-text" rows="3" class="form-control" placeholder="اكتب ملاحظتك الإشرافية على الحلقة أو الأداء..."></textarea>
+                <label>نص الرسالة للإداري</label>
+                <textarea id="supervisor-note-text" rows="3" class="form-control" placeholder="اكتب رسالتك للإداري..."></textarea>
             </div>
             <button type="button" class="btn" onclick="saveSupervisorNote()">
-                <i class="fa-solid fa-check"></i> حفظ ومزامنة الملاحظة
+                <i class="fa-solid fa-check"></i> إرسال الرسالة للإداري
             </button>
 
             <table class="data-table" style="margin-top: 20px;">
@@ -195,12 +218,12 @@
                     <tr>
                         <th>المشرف</th>
                         <th>الحلقة</th>
-                        <th>الملاحظة</th>
+                        <th>الرسالة / الرد</th>
                         <th>الوقت</th>
                     </tr>
                 </thead>
                 <tbody id="supervisor-notes-body">
-                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد ملاحظات إشرافية مسجلة بعد.</td></tr>
+                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد رسائل مرسلة بعد.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -208,6 +231,46 @@
     </div>
 
     <script>
+        let cloudStorage = null;
+        let cloudClient = null;
+
+        function getSupabaseClient() {
+            if (window.bukhariSupabase) return window.bukhariSupabase;
+            if (window.supabaseClient) return window.supabaseClient;
+
+            const cfg = window.BUKHARI_SUPABASE_CONFIG || {};
+            const url = cfg.url || localStorage.getItem('bukhari_supabase_url') || '';
+            const anonKey = cfg.anonKey || localStorage.getItem('bukhari_supabase_anon_key') || '';
+
+            if (url && anonKey && window.supabase && typeof window.supabase.createClient === 'function') {
+                window.bukhariSupabase = window.supabase.createClient(url, anonKey);
+                return window.bukhariSupabase;
+            }
+            return null;
+        }
+
+        function initCloudStorage() {
+            const sb = getSupabaseClient();
+            if (sb && typeof createBukhariStorage === 'function') {
+                try {
+                    cloudClient = sb;
+                    cloudStorage = createBukhariStorage(sb);
+                    return cloudStorage;
+                } catch (e) {
+                    console.warn('تعذر تهيئة التخزين السحابي:', e);
+                }
+            }
+            return null;
+        }
+
+        function getLocalDateKey() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
         function escapeHtml(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -217,23 +280,140 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function colorCodeToHex(code) {
+            if (code === 'yellow') return '#eab308';
+            if (code === 'red') return '#dc2626';
+            return '#16a34a';
+        }
+
+        function arColorToHex(arColor) {
+            const v = String(arColor || '').trim();
+            if (v === 'أصفر' || v === 'yellow') return '#eab308';
+            if (v === 'أحمر' || v === 'red' || v === 'برتقالي' || v === 'orange') return '#dc2626';
+            return '#16a34a';
+        }
+
         function getActiveSupervisorName() {
             const inputEl = document.getElementById('supervisor-actor-name');
             if (inputEl && inputEl.value.trim()) {
                 return inputEl.value.trim();
             }
-            return localStorage.getItem('current_user_name') || 'المشرف';
+            return sessionStorage.getItem('current_user_name') || localStorage.getItem('current_user_name') || 'المشرف';
         }
 
-        window.onload = function() {
-            const savedName = localStorage.getItem('current_user_name') || 'المشرف';
+        function checkMonitorAttendanceState() {
+            const userName = getActiveSupervisorName();
+            const key = `monitor_attendance_${userName}_${getLocalDateKey()}`;
+            const saved = localStorage.getItem(key);
+            const statusEl = document.getElementById('monitor-attendance-status');
+            if (saved && statusEl) {
+                statusEl.textContent = `حالة اليوم: ${saved}`;
+            }
+        }
+
+        async function markMonitorAttendance(mode) {
+            const userName = getActiveSupervisorName();
+            const todayKey = getLocalDateKey();
+            const nowTime = new Date().toLocaleTimeString('ar-SA');
+            const label = mode === 'absent' ? 'غائب' : 'حاضر';
+
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.recordOwnStaffAttendance(mode === 'absent' ? 'absent' : 'present', todayKey);
+                } catch (err) {
+                    alert(err?.message || 'تعذر تسجيل الحضور في السحابة.');
+                    return;
+                }
+            }
+
+            localStorage.setItem(`monitor_attendance_${userName}_${todayKey}`, `${label} (${nowTime})`);
+            const statusEl = document.getElementById('monitor-attendance-status');
+            if (statusEl) statusEl.textContent = `حالة اليوم: ${label} (${nowTime})`;
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    `تسجيل ${label} مشرف`,
+                    userName,
+                    `التاريخ: ${todayKey} | الوقت: ${nowTime}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAFF_ATTENDANCE : undefined }
+                );
+            }
+
+            alert(`تم تسجيل (${label}) بنجاح.`);
+        }
+
+        async function syncRingsFromCloud() {
+            if (!cloudStorage) return false;
+            try {
+                const halaqat = await cloudStorage.monitorListHalaqat();
+                const existingRings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+                const existingById = {};
+                const existingByName = {};
+                existingRings.forEach(r => {
+                    if (r.id !== undefined) existingById[String(r.id)] = r;
+                    if (r.name) existingByName[String(r.name)] = r;
+                });
+
+                const merged = (halaqat || []).map(h => {
+                    const prev = existingById[String(h.id)] || existingByName[String(h.name)] || {};
+                    return {
+                        ...prev,
+                        id: h.id,
+                        name: h.name,
+                        studentsData: Array.isArray(prev.studentsData) ? prev.studentsData : []
+                    };
+                });
+
+                localStorage.setItem('mamma_rings', JSON.stringify(merged));
+                return true;
+            } catch (e) {
+                console.warn('تعذر جلب الحلقات من السحابة:', e);
+                return false;
+            }
+        }
+
+        window.onload = async function() {
+            const storage = initCloudStorage();
+            if (storage) {
+                try {
+                    const profile = await storage.getCurrentStaffProfile();
+                    const roleLower = String(profile.role || '').toLowerCase();
+                    if (roleLower === 'admin' || roleLower === 'general_manager' || roleLower === 'gm') {
+                        window.location.replace('system.html');
+                        return;
+                    }
+                    if (roleLower === 'supervisor') {
+                        window.location.replace('admin.html');
+                        return;
+                    }
+                    if (roleLower === 'teacher') {
+                        window.location.replace('teacher.html');
+                        return;
+                    }
+                    if (roleLower !== 'monitor') {
+                        window.location.replace('index.html');
+                        return;
+                    }
+                    sessionStorage.setItem('current_user_name', profile.full_name);
+                    sessionStorage.setItem('current_user_role', profile.role);
+                    localStorage.setItem('current_user_name', profile.full_name);
+                    localStorage.setItem('current_user_role', profile.role);
+                } catch {
+                    // السماح بالاستمرار في وضع التوافق المحلي عند عدم توفر جلسة سحابية مفعّلة
+                }
+            }
+
+            const savedName = sessionStorage.getItem('current_user_name') || localStorage.getItem('current_user_name') || 'المشرف';
             document.getElementById('header-user-name').innerText = savedName;
             const actorInput = document.getElementById('supervisor-actor-name');
             if (actorInput && savedName !== 'المشرف') {
                 actorInput.value = savedName;
             }
+
+            await syncRingsFromCloud();
             loadSupervisorData();
-            renderSupervisorNotes();
+            checkMonitorAttendanceState();
+            await renderSupervisorNotes();
         };
 
         function loadSupervisorData() {
@@ -254,7 +434,7 @@
             if (noteRingSelect) noteRingSelect.innerHTML = '<option value="">-- اختر الحلقة --</option>';
 
             if (rings.length === 0) {
-                ringsBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد حلقات مضافة حالياً.</td></tr>`;
+                ringsBody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: var(--gray);">لا توجد حلقات مضافة حالياً.</td></tr>`;
                 return;
             }
 
@@ -263,9 +443,7 @@
                 return `
                     <tr>
                         <td><strong>${escapeHtml(r.name)}</strong></td>
-                        <td>${escapeHtml(r.teacher || '-')}</td>
                         <td>${count} طالباً</td>
-                        <td>${escapeHtml(r.attendanceRate || '95%')}</td>
                     </tr>
                 `;
             }).join('');
@@ -275,6 +453,7 @@
                 const opt1 = document.createElement('option');
                 opt1.value = r.name;
                 opt1.textContent = r.name;
+                if (r.id !== undefined && r.id !== null) opt1.dataset.halaqaId = String(r.id);
                 if (ringSelect) ringSelect.appendChild(opt1);
 
                 const opt2 = document.createElement('option');
@@ -284,35 +463,81 @@
             });
         }
 
-        function loadSupervisorStudents() {
-            const ringName = document.getElementById('supervisor-ring-select').value;
+        async function loadSupervisorStudents() {
+            const ringSelect = document.getElementById('supervisor-ring-select');
+            const ringName = ringSelect.value;
+            const selectedOption = ringSelect.options[ringSelect.selectedIndex];
+            const halaqaId = selectedOption?.dataset?.halaqaId ? Number(selectedOption.dataset.halaqaId) : null;
             const tbody = document.getElementById('supervisor-students-body');
+
+            if (!ringName) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">اختر الحلقة لعرض الطلاب.</td></tr>`;
+                return;
+            }
+
+            if (cloudStorage && halaqaId) {
+                try {
+                    const cloudStudents = await cloudStorage.monitorGetHalaqaStudents(halaqaId);
+                    if (!cloudStudents || cloudStudents.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد بيانات طلاب في هذه الحلقة.</td></tr>`;
+                        return;
+                    }
+                    tbody.innerHTML = cloudStudents.map(st => {
+                        const hex = st.color_hex || colorCodeToHex(st.status_color);
+                        return `
+                            <tr>
+                                <td><strong>${escapeHtml(st.full_name)}</strong></td>
+                                <td><strong>${Number(st.points || 0)}</strong></td>
+                                <td><span class="color-dot" style="background-color: ${hex};"></span></td>
+                            </tr>
+                        `;
+                    }).join('');
+                    return;
+                } catch (err) {
+                    console.warn('تعذر جلب طلاب الحلقة من الدالة السحابية:', err);
+                }
+            }
+
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
             const ring = rings.find(r => r.name === ringName);
 
             if (!ring || !Array.isArray(ring.studentsData) || ring.studentsData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد بيانات طلاب في هذه الحلقة.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد بيانات طلاب في هذه الحلقة.</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = ring.studentsData.map(st => `
-                <tr>
-                    <td><strong>${escapeHtml(st.name)}</strong></td>
-                    <td>${escapeHtml(st.grade || '-')}</td>
-                    <td>${escapeHtml(st.status || 'أخضر')}</td>
-                    <td><strong>${Number(st.points || 0)}</strong></td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = ring.studentsData.map(st => {
+                const hex = arColorToHex(st.status);
+                return `
+                    <tr>
+                        <td><strong>${escapeHtml(st.name)}</strong></td>
+                        <td><strong>${Number(st.points || 0)}</strong></td>
+                        <td><span class="color-dot" style="background-color: ${hex};"></span></td>
+                    </tr>
+                `;
+            }).join('');
         }
 
-        function saveSupervisorNote() {
+        async function saveSupervisorNote() {
             const ringName = document.getElementById('supervisor-note-ring').value.trim();
             const supervisorName = getActiveSupervisorName();
             const noteText = document.getElementById('supervisor-note-text').value.trim();
 
             if (!noteText) {
-                alert('يرجى كتابة نص الملاحظة الإشرافية.');
+                alert('يرجى كتابة نص الرسالة للإداري.');
                 return;
+            }
+
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.sendMessageToAdministration(
+                        noteText,
+                        ringName ? `رسالة مشرف (${ringName})` : `رسالة من ${supervisorName}`
+                    );
+                } catch (err) {
+                    alert(err?.message || 'تعذر إرسال الرسالة في السحابة.');
+                    return;
+                }
             }
 
             const timeStr = new Date().toLocaleString('ar-SA');
@@ -327,25 +552,48 @@
 
             if (typeof syncToCloud === 'function') {
                 syncToCloud(
-                    'ملاحظة مشرف',
+                    'رسالة مشرف للإداري',
                     supervisorName,
-                    `الحلقة: ${ringName || 'عام'} | الملاحظة: ${noteText}`,
+                    `الحلقة: ${ringName || 'عام'} | الرسالة: ${noteText}`,
                     { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.MESSAGES : undefined }
                 );
             }
 
             document.getElementById('supervisor-note-text').value = '';
-            renderSupervisorNotes();
-            alert('تم حفظ الملاحظة الإشرافية ومزامنتها سحابياً بنجاح.');
+            await renderSupervisorNotes();
+            alert('تم إرسال الرسالة للإداري بنجاح.');
         }
 
-        function renderSupervisorNotes() {
-            const notes = JSON.parse(localStorage.getItem('mamma_supervisor_notes') || '[]');
+        async function renderSupervisorNotes() {
             const tbody = document.getElementById('supervisor-notes-body');
             if (!tbody) return;
 
+            if (cloudStorage) {
+                try {
+                    const cloudMsgs = await cloudStorage.listMySentMessages();
+                    if (cloudMsgs && cloudMsgs.length > 0) {
+                        tbody.innerHTML = cloudMsgs.map(m => {
+                            const replyHtml = m.reply_body
+                                ? `<br><small style="color: var(--secondary); font-weight: 700;">رد الإدارة: ${escapeHtml(m.reply_body)}</small>`
+                                : '';
+                            const tStr = m.created_at ? new Date(m.created_at).toLocaleString('ar-SA') : '-';
+                            return `
+                                <tr>
+                                    <td><strong>${escapeHtml(getActiveSupervisorName())}</strong></td>
+                                    <td>${escapeHtml(m.subject || 'إداري')}</td>
+                                    <td>${escapeHtml(m.message_body)}${replyHtml}</td>
+                                    <td><small style="color: var(--gray);">${escapeHtml(tStr)}</small></td>
+                                </tr>
+                            `;
+                        }).join('');
+                        return;
+                    }
+                } catch {}
+            }
+
+            const notes = JSON.parse(localStorage.getItem('mamma_supervisor_notes') || '[]');
             if (notes.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد ملاحظات إشرافية مسجلة بعد.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد رسائل مرسلة بعد.</td></tr>`;
                 return;
             }
 
@@ -359,7 +607,14 @@
             `).join('');
         }
 
-        function logout() {
+        async function logout() {
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.logout();
+                } catch {}
+            }
+            sessionStorage.removeItem('current_user_role');
+            sessionStorage.removeItem('current_user_name');
             localStorage.removeItem('current_user_role');
             localStorage.removeItem('current_user_name');
             window.location.href = 'index.html';
