@@ -32,7 +32,7 @@
         .logo-area h1 { font-size: 1.3rem; display: flex; align-items: center; gap: 10px; }
         .user-panel { display: flex; align-items: center; gap: 15px; }
 
-        .container { max-width: 1200px; margin: 25px auto; padding: 0 15px; flex: 1; width: 100%; }
+        .container { max-width: 1150px; margin: 25px auto; padding: 0 15px; flex: 1; width: 100%; }
 
         .btn {
             background-color: var(--secondary);
@@ -47,28 +47,12 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            text-decoration: none;
         }
         .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
         .btn:disabled { opacity: 0.65; cursor: not-allowed; }
         .btn-danger { background-color: var(--danger); }
-        .btn-warning { background-color: var(--warning); color: #000; }
-        .btn-disabled { background-color: #adb5bd !important; cursor: not-allowed !important; pointer-events: none; opacity: 0.5; }
-
-        .whatsapp-btn {
-            background-color: #25d366;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            transition: 0.2s;
-        }
-        .whatsapp-btn:hover { background-color: #1ebe5d; }
-        .whatsapp-btn.disabled { opacity: 0.5; pointer-events: none; }
+        .btn-info { background-color: #0077b6; color: white; }
+        .btn-success { background-color: #2a9d8f; color: white; }
 
         .card {
             background: white;
@@ -100,17 +84,6 @@
         }
         .form-control:focus { border-color: var(--secondary); outline: none; }
 
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        input[type="number"] {
-            -moz-appearance: textfield;
-        }
-
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-        @media(max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         @media(max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
 
@@ -129,26 +102,23 @@
         .data-table th, .data-table td { padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6; font-size: 0.9rem; }
         .data-table th { background-color: #f1f3f5; color: var(--primary); }
 
-        .status-badge {
-            padding: 4px 10px;
+        .whatsapp-btn {
+            background-color: #25d366;
+            color: white;
+            padding: 6px 12px;
             border-radius: 6px;
+            text-decoration: none;
             font-weight: 700;
             font-size: 0.85rem;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
         }
-        .status-green { background-color: #d8f3dc; color: #1b4332; }
-        .status-yellow { background-color: #fff3cd; color: #856404; }
-        .status-orange { background-color: #ffe5d0; color: #d9480f; }
-        .status-red { background-color: #f8d7da; color: #842029; }
-        .payment-badge {
-            padding: 3px 8px;
-            border-radius: 5px;
-            font-weight: 700;
-            font-size: 0.8rem;
-            display: inline-block;
+        .whatsapp-btn.disabled {
+            background-color: #adb5bd;
+            pointer-events: none;
+            opacity: 0.65;
         }
-        .paid { background-color: #d8f3dc; color: #1b4332; }
-        .unpaid { background-color: #f8d7da; color: #721c24; }
     </style>
 
     <!-- ربط مكتبة Supabase وملف التخزين المركزي السحابي -->
@@ -163,310 +133,107 @@
         </div>
         <div class="user-panel">
             <span id="header-user-name" style="font-weight: 700;">الإداري</span>
-            <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> خروج</button>
+            <button type="button" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="logout()">
+                <i class="fa-solid fa-right-from-bracket"></i> خروج
+            </button>
         </div>
     </header>
 
     <div class="container">
 
-        <!-- الحضور والدوام الشخصي للإداري -->
+        <!-- تسجيل حضور وغياب الإداري -->
         <div class="card">
-            <h3><i class="fa-solid fa-fingerprint"></i> تسجيل الدوام الشخصي للإداري</h3>
-            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                <button type="button" id="admin-start-btn" class="btn" onclick="markAdminAttendance('start')"><i class="fa-solid fa-clock"></i> تسجيل بداية الدوام</button>
-                <span id="admin-start-time" style="font-weight: 700; color: var(--secondary);"></span>
-
-                <button type="button" id="admin-end-btn" class="btn btn-warning" onclick="markAdminAttendance('end')" style="margin-right: auto;"><i class="fa-solid fa-flag-checkered"></i> تسجيل نهاية الدوام</button>
-                <span id="admin-end-time" style="font-weight: 700; color: var(--danger);"></span>
+            <h3><i class="fa-solid fa-fingerprint"></i> تسجيل حضور وغياب الإداري</h3>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <button type="button" id="admin-present-btn" class="btn" onclick="markAdminAttendance('present')">
+                    <i class="fa-solid fa-user-check"></i> تسجيل حضور
+                </button>
+                <button type="button" id="admin-absent-btn" class="btn btn-danger" onclick="markAdminAttendance('absent')">
+                    <i class="fa-solid fa-user-xmark"></i> تسجيل غياب
+                </button>
+                <span id="admin-attendance-status" style="font-weight: 700; color: var(--secondary);"></span>
             </div>
         </div>
 
-        <div class="grid-2">
-            <div class="stats-box" id="payment-stats-box">نسب السداد وعدم السداد: اختر الحلقة لعرض النسب</div>
-            <div class="stats-box" id="attendance-progress-box">نسب الحضور والغياب وتقدم النقاط: جاري التحميل...</div>
+        <!-- إضافة طالب جديد وربطه بالحلقة -->
+        <div class="card">
+            <h3><i class="fa-solid fa-user-plus"></i> إضافة طالب وربطه بالحلقة</h3>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>اسم الطالب</label>
+                    <input type="text" id="new-student-name" class="form-control" placeholder="الاسم الكامل للطالب">
+                </div>
+                <div class="form-group">
+                    <label>الحلقة</label>
+                    <select id="new-student-ring" class="form-control">
+                        <option value="">-- اختر الحلقة --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>رقم ولي الأمر (واتساب)</label>
+                    <input type="text" id="new-student-phone" class="form-control" placeholder="مثال: 9665XXXXXXXX">
+                </div>
+                <div class="form-group">
+                    <label>المرحلة الدراسية</label>
+                    <input type="text" id="new-student-grade" class="form-control" placeholder="مثال: ابتدائي / متوسط / ثانوي">
+                </div>
+            </div>
+            <button type="button" class="btn" onclick="addStudentToRing()">
+                <i class="fa-solid fa-plus"></i> حفظ الطالب
+            </button>
         </div>
 
-        <!-- متابعة رسائل وبلاغات المعلمين -->
+        <!-- التحضير وإشعارات الواتساب -->
         <div class="card">
-            <h3><i class="fa-solid fa-comments"></i> رسائل وبلاغات المعلمين الموجهة للإدارة</h3>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>اسم المعلم</th>
-                        <th>نص الملاحظة أو البلاغ</th>
-                        <th>إجراء الرد والتأكيد</th>
-                    </tr>
-                </thead>
-                <tbody id="teachers-messages-body">
-                    <tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد رسائل أو ملاحظات مرسلة من المعلمين حالياً.</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- تحضير الطلاب والغياب مع روابط الواتساب -->
-        <div class="card">
-            <h3><i class="fa-solid fa-clipboard-user"></i> تحضير الطلاب والغياب (حسب الحلقة)</h3>
+            <h3><i class="fa-solid fa-clipboard-check"></i> تحضير الطلاب وإشعارات الواتساب</h3>
             <div class="form-group">
                 <label>اختر الحلقة</label>
                 <select id="attendance-ring-select" class="form-control" onchange="loadStudentsForAttendance()">
                     <option value="">-- اختر الحلقة --</option>
                 </select>
             </div>
+
+            <div class="stats-box" id="payment-stats-box">نسبة التسديد: 0% | المسددون: 0 | غير المسددين: 0</div>
+
             <table class="data-table">
                 <thead>
                     <tr>
                         <th>اسم الطالب</th>
-                        <th>حالة الحضور</th>
+                        <th>الحالة اليومية</th>
                         <th>رقم ولي الأمر</th>
-                        <th>إرسال تنبيه واتساب</th>
+                        <th>إشعار واتساب</th>
                     </tr>
                 </thead>
                 <tbody id="attendance-students-body">
                     <tr><td colspan="4" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض الطلاب المضافين.</td></tr>
                 </tbody>
             </table>
-            <div style="margin-top: 15px; display: flex; gap: 10px;">
-                <button type="button" class="btn" onclick="saveAttendanceChanges()"><i class="fa-solid fa-floppy-disk"></i> حفظ</button>
+
+            <div style="margin-top: 15px;">
+                <button type="button" class="btn" onclick="saveAttendanceChanges()">
+                    <i class="fa-solid fa-floppy-disk"></i> حفظ ومزامنة التحضير
+                </button>
             </div>
         </div>
 
-        <!-- إضافة طالب جديد -->
+        <!-- رسائل المعلمين والمشرفين والرد عليها -->
         <div class="card">
-            <h3><i class="fa-solid fa-user-plus"></i> إضافة طالب جديد</h3>
-            <div class="grid-3">
-                <div class="form-group">
-                    <label>اسم الطالب</label>
-                    <input type="text" id="new-st-name" class="form-control" placeholder="أدخل اسم الطالب الكامل">
-                </div>
-                <div class="form-group">
-                    <label>رقم ولي الأمر</label>
-                    <input type="text" id="new-st-phone" class="form-control" placeholder="مثال: 9665xxxxxxxx">
-                </div>
-                <div class="form-group">
-                    <label>الهوية</label>
-                    <input type="text" id="new-st-id" class="form-control" placeholder="أدخل رقم الهوية">
-                </div>
-            </div>
-            <div class="grid-3">
-                <div class="form-group">
-                    <label>تاريخ الميلاد (السنة / الشهر / اليوم)</label>
-                    <input type="date" id="new-st-birthdate" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label>المرحلة الدراسية</label>
-                    <select id="new-st-grade" class="form-control">
-                        <option value="">-- اختر المرحلة الدراسية --</option>
-                        <option value="اول ابتدائي">اول ابتدائي</option>
-                        <option value="ثاني ابتدائي">ثاني ابتدائي</option>
-                        <option value="ثالث ابتدائي">ثالث ابتدائي</option>
-                        <option value="رابع ابتدائي">رابع ابتدائي</option>
-                        <option value="خامس ابتدائي">خامس ابتدائي</option>
-                        <option value="سادس ابتدائي">سادس ابتدائي</option>
-                        <option value="اول متوسط">اول متوسط</option>
-                        <option value="ثاني متوسط">ثاني متوسط</option>
-                        <option value="ثالث متوسط">ثالث متوسط</option>
-                        <option value="اول ثانوي">اول ثانوي</option>
-                        <option value="ثاني ثانوي">ثاني ثانوي</option>
-                        <option value="ثالث ثانوي">ثالث ثانوي</option>
-                        <option value="جامعي /خريج">جامعي /خريج</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>الحالة</label>
-                    <select id="new-st-status" class="form-control">
-                        <option value="أخضر">🟢 أخضر</option>
-                        <option value="أصفر">🟡 أصفر</option>
-                        <option value="أحمر">🔴 أحمر</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>الحلقة المضاف لها</label>
-                <select id="new-st-ring" class="form-control">
-                    <option value="">-- اختر الحلقة --</option>
-                </select>
-            </div>
-            <button type="button" class="btn" onclick="addNewStudentToRing()"><i class="fa-solid fa-plus"></i> حفظ وإضافة الطالب للحلقة</button>
-        </div>
-
-        <!-- إدارة بيانات الطلاب (تعديل وحذف) -->
-        <div class="card">
-            <h3><i class="fa-solid fa-user-gear"></i> إدارة بيانات الطلاب (تعديل وحذف)</h3>
-            <div class="form-group">
-                <label>اختر الحلقة لعرض الطلاب وإدارتهم</label>
-                <select id="manage-ring-select" class="form-control" onchange="onManageRingSelected()">
-                    <option value="">-- اختر الحلقة --</option>
-                </select>
-            </div>
+            <h3><i class="fa-solid fa-envelope"></i> رسائل المعلمين والمشرفين والرد عليها</h3>
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>اسم الطالب وباقي البيانات</th>
-                        <th>خيارات الإدارة (تعديل / حذف)</th>
+                        <th>المرسل</th>
+                        <th>العنوان / الحلقة</th>
+                        <th>نص الرسالة</th>
+                        <th>الرد والاعتماد</th>
                     </tr>
                 </thead>
-                <tbody id="manage-students-body">
-                    <tr><td colspan="2" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض بيانات الطلاب.</td></tr>
+                <tbody id="admin-inbox-body">
+                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد رسائل واردة حالياً.</td></tr>
                 </tbody>
             </table>
-        </div>
-
-        <!-- 1. الحلقة المثالية -->
-        <div class="card">
-            <h3><i class="fa-solid fa-award"></i> الحلقة المثالية</h3>
-            <div class="grid-2">
-                <div class="form-group">
-                    <label>اسم الحلقة</label>
-                    <select id="ideal-ring-select" class="form-control ring-dynamic-select">
-                        <option value="">-- اختر الحلقة --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>التاريخ</label>
-                    <input type="date" id="ideal-ring-date" class="form-control">
-                </div>
-            </div>
-            <button type="button" class="btn" onclick="saveIdealRing()"><i class="fa-solid fa-check"></i> حفظ الحلقة المثالية</button>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>اسم الحلقة</th>
-                        <th>التاريخ</th>
-                    </tr>
-                </thead>
-                <tbody id="ideal-ring-body">
-                    <tr><td colspan="2" style="text-align: center; color: var(--gray);">لا توجد سجلات للحلقة المثالية بعد.</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 2. التجويد -->
-        <div class="card">
-            <h3><i class="fa-solid fa-book-open-reader"></i> التجويد</h3>
-            <div class="grid-2">
-                <div class="form-group">
-                    <label>اسم الحلقة</label>
-                    <select id="tajweed-ring-select" class="form-control ring-dynamic-select">
-                        <option value="">-- اختر الحلقة --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>التاريخ</label>
-                    <input type="date" id="tajweed-date" class="form-control">
-                </div>
-            </div>
-            <button type="button" class="btn" onclick="saveTajweedEntry()"><i class="fa-solid fa-check"></i> حفظ سجل التجويد</button>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>اسم الحلقة</th>
-                        <th>التاريخ</th>
-                    </tr>
-                </thead>
-                <tbody id="tajweed-body">
-                    <tr><td colspan="2" style="text-align: center; color: var(--gray);">لا توجد سجلات للتجويد بعد.</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 3. فارس الحلقات -->
-        <div class="card">
-            <h3><i class="fa-solid fa-crown"></i> فارس الحلقات</h3>
-            <div class="grid-3">
-                <div class="form-group">
-                    <label>اسم الحلقة</label>
-                    <select id="knight-ring-select" class="form-control ring-dynamic-select" onchange="populateStudentsForSelect('knight-ring-select', 'knight-student-select')">
-                        <option value="">-- اختر الحلقة --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>اسم الطالب</label>
-                    <select id="knight-student-select" class="form-control">
-                        <option value="">-- اختر الطالب --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>التاريخ</label>
-                    <input type="date" id="knight-date" class="form-control">
-                </div>
-            </div>
-            <button type="button" class="btn" onclick="saveRingKnight()"><i class="fa-solid fa-check"></i> حفظ فارس الحلقات</button>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>اسم الحلقة</th>
-                        <th>اسم الطالب</th>
-                        <th>التاريخ</th>
-                    </tr>
-                </thead>
-                <tbody id="knight-body">
-                    <tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد سجلات لفارس الحلقات بعد.</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 4. المرحليات -->
-        <div class="card">
-            <h3><i class="fa-solid fa-stairs"></i> المرحليات</h3>
-            <div class="grid-3">
-                <div class="form-group">
-                    <label>اسم الطالب</label>
-                    <select id="stage-student-select" class="form-control">
-                        <option value="">-- اختر الطالب --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>المرحلية المجتازة</label>
-                    <input type="text" id="stage-completed" class="form-control" placeholder="أدخل المرحلية المجتازة">
-                </div>
-                <div class="form-group">
-                    <label>المرحلية القادمة</label>
-                    <input type="text" id="stage-next" class="form-control" placeholder="أدخل المرحلية القادمة">
-                </div>
-            </div>
-            <button type="button" class="btn" onclick="saveStageProgressEntry()"><i class="fa-solid fa-check"></i> حفظ المرحليات</button>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>اسم الطالب</th>
-                        <th>المرحلية المجتازة</th>
-                        <th>المرحلية القادمة</th>
-                    </tr>
-                </thead>
-                <tbody id="stage-progress-body">
-                    <tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد سجلات للمرحليات بعد.</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- رصد النقاط التشجيعية المطور -->
-        <div class="card">
-            <h3><i class="fa-solid fa-star"></i> رصد النقاط التشجيعية</h3>
-            <div class="form-group">
-                <label>اختر الحلقة</label>
-                <select id="points-ring-select" class="form-control" onchange="loadStudentsForPointsTable()">
-                    <option value="">-- اختر الحلقة --</option>
-                </select>
-            </div>
-
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>اسم الطالب</th>
-                        <th>إضافة نقاط</th>
-                        <th>خصم نقاط</th>
-                        <th>مجموع النقاط</th>
-                    </tr>
-                </thead>
-                <tbody id="points-table-body">
-                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض الطلاب ورصد النقاط.</td></tr>
-                </tbody>
-            </table>
-
-            <div style="margin-top: 20px; display: flex; gap: 10px;">
-                <button type="button" class="btn" onclick="savePointsChanges()"><i class="fa-solid fa-check"></i> اعتماد</button>
-                <button type="button" class="btn btn-warning" onclick="resetPointsTable()"><i class="fa-solid fa-rotate-left"></i> تصفير نقاط</button>
-            </div>
         </div>
 
     </div>
@@ -474,7 +241,6 @@
     <script>
         let cloudStorage = null;
         let cloudClient = null;
-        let cloudRingsCache = [];
 
         function getSupabaseClient() {
             if (window.bukhariSupabase) return window.bukhariSupabase;
@@ -513,27 +279,6 @@
             return `${year}-${month}-${day}`;
         }
 
-        function getAttendanceStorageKeys(userName) {
-            const todayKey = getLocalDateKey();
-            return {
-                startKey: `admin_start_time_${userName}_${todayKey}`,
-                endKey: `admin_end_time_${userName}_${todayKey}`
-            };
-        }
-
-        function getActiveUserName() {
-            const headerName = document.getElementById('header-user-name').innerText.trim();
-            return sessionStorage.getItem('current_user_name') || localStorage.getItem('current_user_name') || headerName || 'الإداري';
-        }
-
-        function setDefaultDatesForNewSections() {
-            const todayKey = getLocalDateKey();
-            ['ideal-ring-date', 'tajweed-date', 'knight-date'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el && !el.value) el.value = todayKey;
-            });
-        }
-
         function escapeHtml(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -544,29 +289,16 @@
         }
 
         function formatPhoneForWhatsapp(phone) {
-            let digits = String(phone || '').replace(/\D/g, '');
-            if (!digits) return '';
+            const raw = String(phone || '').trim();
+            if (!raw) return '';
+            let digits = raw.replace(/\D+/g, '');
+            if (digits.startsWith('00')) digits = digits.slice(2);
             if (digits.startsWith('05') && digits.length === 10) {
                 digits = '966' + digits.slice(1);
             } else if (digits.startsWith('5') && digits.length === 9) {
                 digits = '966' + digits;
             }
             return digits;
-        }
-
-        function statusColorToAr(code) {
-            if (code === 'yellow') return 'أصفر';
-            if (code === 'red') return 'أحمر';
-            if (code === 'orange') return 'برتقالي';
-            return 'أخضر';
-        }
-
-        function arStatusToColorCode(arStatus) {
-            const v = String(arStatus || '').trim();
-            if (v === 'أصفر' || v === 'yellow') return 'yellow';
-            if (v === 'أحمر' || v === 'red') return 'red';
-            if (v === 'برتقالي' || v === 'orange') return 'orange';
-            return 'green';
         }
 
         function arAttendanceToCode(arAtt) {
@@ -576,14 +308,11 @@
             return 'present';
         }
 
-        function codeAttendanceToAr(code) {
-            if (code === 'absent') return 'غائب';
-            if (code === 'late') return 'متأخر';
-            if (code === 'excused') return 'غائب بعذر';
-            return 'حاضر';
+        function getActiveAdminName() {
+            return sessionStorage.getItem('current_user_name') || localStorage.getItem('current_user_name') || 'الإداري';
         }
 
-        async function syncRingsFromCloud() {
+        async function syncRingsAndStudentsFromCloud() {
             if (!cloudStorage || !cloudClient) return false;
             try {
                 const [{ data: halaqatRows, error: hErr }, studentsRows] = await Promise.all([
@@ -592,32 +321,48 @@
                 ]);
                 if (hErr) throw hErr;
 
+                const existingRings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+                const prevById = {};
+                existingRings.forEach(r => {
+                    if (r.id !== undefined) prevById[String(r.id)] = r;
+                });
+
                 const mappedRings = (halaqatRows || []).map(h => {
+                    const prevRing = prevById[String(h.id)] || {};
+                    const prevStById = {};
+                    const prevStByName = {};
+                    (prevRing.studentsData || []).forEach(s => {
+                        if (s.id) prevStById[String(s.id)] = s;
+                        if (s.name) prevStByName[String(s.name)] = s;
+                    });
+
                     const stList = (studentsRows || [])
                         .filter(s => String(s.halaqa_id || '') === String(h.id))
-                        .map(s => ({
-                            id: s.id,
-                            name: s.full_name,
-                            parentPhone: s.guardian_phone || '',
-                            identity: s.id,
-                            ageBirth: s.birth_date || '',
-                            grade: s.academic_stage || '',
-                            status: statusColorToAr(s.status_color),
-                            paymentStatus: s.is_paid ? 'مسدد' : 'لم يسدد',
-                            attendanceStatus: 'حاضر',
-                            absentDays: 0,
-                            points: Number(s.points || 0),
-                            halaqaId: h.id
-                        }));
+                        .map(s => {
+                            const prevSt = prevStById[String(s.id)] || prevStByName[String(s.full_name)] || {};
+                            return {
+                                id: s.id,
+                                name: s.full_name,
+                                parentPhone: s.guardian_phone || prevSt.parentPhone || '',
+                                grade: s.academic_stage || prevSt.grade || '',
+                                attendanceStatus: prevSt.attendanceStatus || 'حاضر',
+                                presentDays: Number(prevSt.presentDays || 0),
+                                absentDays: Number(prevSt.absentDays || 0),
+                                lastAttendanceDate: prevSt.lastAttendanceDate || '',
+                                paid: Boolean(prevSt.paid),
+                                points: Number(s.points || prevSt.points || 0),
+                                status: prevSt.status || 'أخضر'
+                            };
+                        });
+
                     return {
+                        ...prevRing,
                         id: h.id,
                         name: h.name,
-                        studentsData: stList,
-                        studentsCount: `${stList.length} طالباً`
+                        studentsData: stList
                     };
                 });
 
-                cloudRingsCache = mappedRings;
                 localStorage.setItem('mamma_rings', JSON.stringify(mappedRings));
                 return true;
             } catch (e) {
@@ -626,19 +371,42 @@
             }
         }
 
-        async function refreshStudentProgressStats() {
-            const box = document.getElementById('attendance-progress-box');
-            if (!box) return;
-            if (!cloudStorage) {
-                box.textContent = 'نسبة زيادة النقاط الأسبوعية: 100%';
-                return;
+        function checkAdminAttendanceState() {
+            const name = getActiveAdminName();
+            const saved = localStorage.getItem(`admin_attendance_${name}_${getLocalDateKey()}`);
+            const el = document.getElementById('admin-attendance-status');
+            if (saved && el) el.textContent = `حالة اليوم: ${saved}`;
+        }
+
+        async function markAdminAttendance(mode) {
+            const name = getActiveAdminName();
+            const todayKey = getLocalDateKey();
+            const nowTime = new Date().toLocaleTimeString('ar-SA');
+            const label = mode === 'absent' ? 'غائب' : 'حاضر';
+
+            if (cloudStorage) {
+                try {
+                    await cloudStorage.recordOwnStaffAttendance(mode === 'absent' ? 'absent' : 'present', todayKey);
+                } catch (err) {
+                    alert(err?.message || 'تعذر تسجيل الحضور في السحابة.');
+                    return;
+                }
             }
-            try {
-                const stats = await cloudStorage.supervisorGetStudentProgressStats();
-                box.textContent = `نسب الطلاب: حضور ${stats.attendanceRate}% | غياب ${stats.absenceRate}%`;
-            } catch {
-                box.textContent = 'نسبة زيادة النقاط الأسبوعية: 100%';
+
+            localStorage.setItem(`admin_attendance_${name}_${todayKey}`, `${label} (${nowTime})`);
+            const el = document.getElementById('admin-attendance-status');
+            if (el) el.textContent = `حالة اليوم: ${label} (${nowTime})`;
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    `تسجيل ${label} إداري`,
+                    name,
+                    `التاريخ: ${todayKey} | الوقت: ${nowTime}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAFF_ATTENDANCE : undefined }
+                );
             }
+
+            alert(`تم تسجيل (${label}) بنجاح.`);
         }
 
         window.onload = async function() {
@@ -649,6 +417,14 @@
                     const roleLower = String(profile.role || '').toLowerCase();
                     if (roleLower === 'admin' || roleLower === 'general_manager' || roleLower === 'gm') {
                         window.location.replace('system.html');
+                        return;
+                    }
+                    if (roleLower === 'teacher') {
+                        window.location.replace('teacher.html');
+                        return;
+                    }
+                    if (roleLower === 'monitor') {
+                        window.location.replace('supervisor.html');
                         return;
                     }
                     if (roleLower !== 'supervisor') {
@@ -664,259 +440,156 @@
                 }
             }
 
-            const currentName = getActiveUserName();
-            document.getElementById('header-user-name').innerText = currentName;
-            setDefaultDatesForNewSections();
+            const savedName = getActiveAdminName();
+            document.getElementById('header-user-name').innerText = savedName;
 
-            await syncRingsFromCloud();
-            loadRingsDropdowns();
-            populateAllStudentsSelects();
-            checkExistingAttendance();
-            await loadTeachersMessages();
-            await refreshStudentProgressStats();
-            renderExtraSections();
-
-            setInterval(checkExistingAttendance, 60000);
+            await syncRingsAndStudentsFromCloud();
+            populateRingDropdowns();
+            checkAdminAttendanceState();
+            await loadAdminInboxMessages();
         };
 
-        function checkExistingAttendance() {
-            const userName = getActiveUserName();
-            const { startKey, endKey } = getAttendanceStorageKeys(userName);
+        function populateRingDropdowns() {
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const newRingSel = document.getElementById('new-student-ring');
+            const attRingSel = document.getElementById('attendance-ring-select');
 
-            const startBtn = document.getElementById('admin-start-btn');
-            const endBtn = document.getElementById('admin-end-btn');
-            const startTimeEl = document.getElementById('admin-start-time');
-            const endTimeEl = document.getElementById('admin-end-time');
+            if (newRingSel) newRingSel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+            if (attRingSel) attRingSel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
 
-            startBtn.classList.remove('btn-disabled');
-            startBtn.disabled = false;
-            startTimeEl.innerText = '';
-
-            endBtn.classList.remove('btn-disabled');
-            endBtn.disabled = false;
-            endTimeEl.innerText = '';
-
-            const savedStart = localStorage.getItem(startKey);
-            const savedEnd = localStorage.getItem(endKey);
-
-            if (savedStart) {
-                startBtn.classList.add('btn-disabled');
-                startBtn.disabled = true;
-                startTimeEl.innerText = `بداية الدوام: ${savedStart}`;
-            }
-            if (savedEnd) {
-                endBtn.classList.add('btn-disabled');
-                endBtn.disabled = true;
-                endTimeEl.innerText = `نهاية الدوام: ${savedEnd}`;
-            }
-        }
-
-        async function markAdminAttendance(type) {
-            const nowTime = new Date().toLocaleTimeString('ar-SA');
-            const userName = getActiveUserName();
-            const { startKey, endKey } = getAttendanceStorageKeys(userName);
-
-            try {
-                if (cloudStorage) {
-                    await cloudStorage.recordOwnStaffAttendance('present', getLocalDateKey());
+            rings.forEach(r => {
+                if (!r || !r.name) return;
+                if (newRingSel) {
+                    const o1 = document.createElement('option');
+                    o1.value = r.name;
+                    o1.textContent = r.name;
+                    newRingSel.appendChild(o1);
                 }
-            } catch (err) {
-                console.warn('تعذر تسجيل الدوام السحابي:', err);
-            }
-
-            if (type === 'start') {
-                const btn = document.getElementById('admin-start-btn');
-                btn.classList.add('btn-disabled');
-                btn.disabled = true;
-                document.getElementById('admin-start-time').innerText = `بداية الدوام: ${nowTime}`;
-                localStorage.setItem(startKey, nowTime);
-
-                if (typeof syncToCloud === 'function') {
-                    syncToCloud('تسجيل دوام إداري - بداية', userName, `وقت الحضور: ${nowTime}`, {
-                        sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAFF_ATTENDANCE : undefined
-                    });
+                if (attRingSel) {
+                    const o2 = document.createElement('option');
+                    o2.value = r.name;
+                    o2.textContent = r.name;
+                    attRingSel.appendChild(o2);
                 }
-                alert('تم تسجيل بداية الدوام الإداري وحفظه بنجاح.');
-            } else {
-                const btn = document.getElementById('admin-end-btn');
-                btn.classList.add('btn-disabled');
-                btn.disabled = true;
-                document.getElementById('admin-end-time').innerText = `نهاية الدوام: ${nowTime}`;
-                localStorage.setItem(endKey, nowTime);
-
-                if (typeof syncToCloud === 'function') {
-                    syncToCloud('تسجيل دوام إداري - نهاية', userName, `وقت الانصراف: ${nowTime}`, {
-                        sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAFF_ATTENDANCE : undefined
-                    });
-                }
-                alert('تم تسجيل نهاية الدوام الإداري وحفظه بنجاح.');
-            }
-        }
-
-        async function loadTeachersMessages() {
-            const tbody = document.getElementById('teachers-messages-body');
-            let messages = [];
-
-            if (cloudStorage) {
-                try {
-                    const cloudMsgs = await cloudStorage.supervisorListStaffMessages();
-                    messages = (cloudMsgs || []).map(m => ({
-                        id: m.id,
-                        teacher: m.subject || m.sender_role || 'موظف',
-                        text: m.message_body,
-                        reply: m.reply_body || '',
-                        time: m.created_at ? new Date(m.created_at).toLocaleString('ar-SA') : '',
-                        isCloud: true
-                    }));
-                } catch (e) {
-                    console.warn('تعذر جلب رسائل الموظفين من السحابة:', e);
-                }
-            }
-
-            if (messages.length === 0) {
-                const localMsgs = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
-                messages = localMsgs.map((m, idx) => ({ ...m, localIndex: idx, isCloud: false }));
-            }
-
-            if (messages.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد رسائل أو ملاحظات مرسلة من المعلمين حالياً.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = '';
-            messages.forEach((msg) => {
-                const tr = document.createElement('tr');
-                const replyBadge = msg.reply
-                    ? `<br><small style="color: var(--secondary); font-weight: 700;">الرد: ${escapeHtml(msg.reply)}</small>`
-                    : '';
-                const actionArg = msg.isCloud ? `'cloud', ${Number(msg.id)}` : `'local', ${Number(msg.localIndex)}`;
-                tr.innerHTML = `
-                    <td><strong>${escapeHtml(msg.teacher)}</strong><br><small style="color: var(--gray);">${escapeHtml(msg.time || '')}</small></td>
-                    <td>${escapeHtml(msg.text)}${replyBadge}</td>
-                    <td><button type="button" class="btn" style="padding: 5px 12px; font-size: 0.85rem;" onclick="replyToTeacherMessage(${actionArg})"><i class="fa-solid fa-reply"></i> الرد والاعتماد</button></td>
-                `;
-                tbody.appendChild(tr);
             });
         }
 
-        async function replyToTeacherMessage(source, idOrIndex) {
-            const replyText = prompt('أدخل رد الإدارة على الرسالة:');
-            if (!replyText || !replyText.trim()) return;
+        async function addStudentToRing() {
+            const name = document.getElementById('new-student-name').value.trim();
+            const ringName = document.getElementById('new-student-ring').value.trim();
+            const phone = document.getElementById('new-student-phone').value.trim();
+            const grade = document.getElementById('new-student-grade').value.trim();
 
-            try {
-                if (source === 'cloud' && cloudStorage) {
-                    await cloudStorage.supervisorReplyToMessage(idOrIndex, replyText.trim());
-                    await loadTeachersMessages();
-                    alert('تم إرسال رد الإدارة وحفظه في السحابة بنجاح.');
+            if (!name || !ringName) {
+                alert('يرجى إدخال اسم الطالب واختيار الحلقة.');
+                return;
+            }
+
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const ring = rings.find(r => r.name === ringName);
+            if (!ring) {
+                alert('الحلقة المختارة غير موجودة.');
+                return;
+            }
+
+            let createdId = null;
+            if (cloudStorage && ring.id) {
+                try {
+                    const created = await cloudStorage.supervisorCreateStudent({
+                        fullName: name,
+                        halaqaId: ring.id,
+                        guardianPhone: phone || null,
+                        academicStage: grade || null,
+                        points: 0,
+                        statusColor: 'green'
+                    });
+                    createdId = created?.id || null;
+                } catch (err) {
+                    alert(err?.message || 'تعذر إضافة الطالب في السحابة.');
                     return;
                 }
-
-                const messages = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
-                if (!messages[idOrIndex]) return;
-
-                const adminName = getActiveUserName();
-                if (typeof syncToCloud === 'function') {
-                    syncToCloud('رد الإدارة على معلم', adminName, `المعلم: ${messages[idOrIndex].teacher}, الرد: ${replyText.trim()}`, {
-                        sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.MESSAGES : undefined
-                    });
-                }
-
-                messages.splice(idOrIndex, 1);
-                localStorage.setItem('teachers_messages', JSON.stringify(messages));
-                await loadTeachersMessages();
-                alert('تم إرسال رد الإدارة بنجاح.');
-            } catch (err) {
-                alert(err?.message || 'تعذر إرسال الرد حالياً.');
             }
+
+            if (!Array.isArray(ring.studentsData)) ring.studentsData = [];
+            ring.studentsData.push({
+                id: createdId,
+                name,
+                parentPhone: phone,
+                grade,
+                attendanceStatus: 'حاضر',
+                presentDays: 0,
+                absentDays: 0,
+                lastAttendanceDate: '',
+                paid: false,
+                points: 0,
+                status: 'أخضر'
+            });
+
+            localStorage.setItem('mamma_rings', JSON.stringify(rings));
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'إضافة طالب',
+                    getActiveAdminName(),
+                    `الطالب: ${name} | الحلقة: ${ringName} | الجوال: ${phone || '-'}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STUDENTS : undefined }
+                );
+            }
+
+            document.getElementById('new-student-name').value = '';
+            document.getElementById('new-student-phone').value = '';
+            document.getElementById('new-student-grade').value = '';
+
+            if (document.getElementById('attendance-ring-select').value === ringName) {
+                loadStudentsForAttendance();
+            }
+            alert(`تمت إضافة الطالب (${name}) إلى حلقة (${ringName}) بنجاح.`);
         }
 
         function updatePaymentStatsBox(ringName) {
             const box = document.getElementById('payment-stats-box');
             if (!box) return;
-            if (!ringName) {
-                box.textContent = 'نسب السداد وعدم السداد: اختر الحلقة لعرض النسب';
-                return;
-            }
+
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
             const ring = rings.find(r => r.name === ringName);
             const students = (ring && Array.isArray(ring.studentsData)) ? ring.studentsData : [];
+
             if (students.length === 0) {
-                box.textContent = `نسب السداد (${ringName}): لا يوجد طلاب مسجلون`;
+                box.innerHTML = 'نسبة التسديد: 0% | المسددون: 0 | غير المسددين: 0';
                 return;
             }
-            const paidCount = students.filter(s => s.paymentStatus === 'مسدد').length;
-            const paidPct = Math.round((paidCount / students.length) * 100);
-            const unpaidPct = 100 - paidPct;
-            box.textContent = `نسب السداد (${ringName}): مسدد ${paidPct}% | غير مسدد ${unpaidPct}%`;
+
+            const paidCount = students.filter(s => Boolean(s.paid)).length;
+            const unpaidCount = students.length - paidCount;
+            const pct = Math.round((paidCount / students.length) * 100);
+            box.innerHTML = `نسبة التسديد: <strong>${pct}%</strong> | المسددون: <strong>${paidCount}</strong> | غير المسددين: <strong>${unpaidCount}</strong>`;
         }
 
-        function loadRingsDropdowns() {
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+        function buildWhatsappMessageForStudent(studentName, status) {
+            const todayStr = getLocalDateKey();
+            const cleanName = String(studentName || '').trim();
 
-            const attendanceSelect = document.getElementById('attendance-ring-select');
-            const newStRingSelect = document.getElementById('new-st-ring');
-            const manageRingSelect = document.getElementById('manage-ring-select');
-            const pointsRingSelect = document.getElementById('points-ring-select');
-            const extraRingSelects = document.querySelectorAll('.ring-dynamic-select');
-
-            [attendanceSelect, newStRingSelect, manageRingSelect, pointsRingSelect].forEach(sel => {
-                if (sel) sel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
-            });
-
-            extraRingSelects.forEach(sel => {
-                if (sel) sel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
-            });
-
-            rings.forEach(ring => {
-                const opt1 = document.createElement('option');
-                opt1.value = ring.name;
-                opt1.textContent = ring.name;
-                if (ring.id !== undefined && ring.id !== null) {
-                    opt1.dataset.halaqaId = String(ring.id);
-                }
-
-                if (attendanceSelect) attendanceSelect.appendChild(opt1.cloneNode(true));
-                if (newStRingSelect) newStRingSelect.appendChild(opt1.cloneNode(true));
-                if (manageRingSelect) manageRingSelect.appendChild(opt1.cloneNode(true));
-                if (pointsRingSelect) pointsRingSelect.appendChild(opt1.cloneNode(true));
-
-                extraRingSelects.forEach(sel => {
-                    if (sel) sel.appendChild(opt1.cloneNode(true));
-                });
-            });
+            if (status === 'غائب') {
+                return `تم تسجيل غياب الطالب (${cleanName}) بتاريخ ${todayStr}`;
+            }
+            if (status === 'متأخر') {
+                return `تم تسجيل الطالب متأخر (${cleanName}) بتاريخ ${todayStr}`;
+            }
+            return `السلام عليكم ولي أمر الطالب (${cleanName})، نود إشعاركم بأن حالة حضور الطالب بتاريخ ${todayStr} هي: ${status}.`;
         }
 
-        function populateStudentsForSelect(ringSelectId, studentSelectId) {
-            const ringSelect = ringSelectId ? document.getElementById(ringSelectId) : null;
-            const studentSelect = document.getElementById(studentSelectId);
-            if (!studentSelect) return;
+        function updateRowWhatsappLink(selectElement) {
+            const row = selectElement ? selectElement.closest('tr') : null;
+            if (!row) return;
 
-            const selectedRingName = ringSelect ? ringSelect.value : '';
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const waLinkEl = row.querySelector('.whatsapp-btn');
+            const studentName = row.dataset.studentName || '';
+            const phoneDigits = row.dataset.phoneDigits || '';
+            const status = selectElement.value;
 
-            studentSelect.innerHTML = '<option value="">-- اختر الطالب --</option>';
-
-            const targetRings = selectedRingName
-                ? rings.filter(r => r.name === selectedRingName)
-                : rings;
-
-            targetRings.forEach(ring => {
-                (ring.studentsData || []).forEach(st => {
-                    if (st && st.name) {
-                        const opt = document.createElement('option');
-                        opt.value = st.name;
-                        if (st.id) opt.dataset.studentId = String(st.id);
-                        if (ring.id) opt.dataset.halaqaId = String(ring.id);
-                        opt.textContent = selectedRingName ? st.name : `${st.name} (${ring.name})`;
-                        studentSelect.appendChild(opt);
-                    }
-                });
-            });
-        }
-
-        function populateAllStudentsSelects() {
-            populateStudentsForSelect('knight-ring-select', 'knight-student-select');
-            populateStudentsForSelect(null, 'stage-student-select');
+            if (!waLinkEl || !phoneDigits) return;
+            const encodedMsg = encodeURIComponent(buildWhatsappMessageForStudent(studentName, status));
+            waLinkEl.href = `https://wa.me/${phoneDigits}?text=${encodedMsg}`;
         }
 
         function loadStudentsForAttendance() {
@@ -942,15 +615,17 @@
             students.forEach((st, idx) => {
                 const currentStatus = st.attendanceStatus || 'حاضر';
                 const phoneDigits = formatPhoneForWhatsapp(st.parentPhone);
-                const msgText = encodeURIComponent(`السلام عليكم ولي أمر الطالب ${st.name}، نود إشعاركم بأن حالة حضور الطالب اليوم في حلقة (${ringName}) هي: ${currentStatus}.`);
+                const msgText = encodeURIComponent(buildWhatsappMessageForStudent(st.name, currentStatus));
                 const waLink = phoneDigits ? `https://wa.me/${phoneDigits}?text=${msgText}` : '#';
                 const disabledCls = phoneDigits ? '' : 'disabled';
 
                 const tr = document.createElement('tr');
+                tr.dataset.studentName = String(st.name || '');
+                tr.dataset.phoneDigits = phoneDigits;
                 tr.innerHTML = `
                     <td><strong>${escapeHtml(st.name)}</strong></td>
                     <td>
-                        <select class="form-control attendance-status-select" data-student-index="${idx}">
+                        <select class="form-control attendance-status-select" data-student-index="${idx}" onchange="updateRowWhatsappLink(this)">
                             <option value="حاضر" ${currentStatus === 'حاضر' ? 'selected' : ''}>حاضر</option>
                             <option value="غائب" ${currentStatus === 'غائب' ? 'selected' : ''}>غائب</option>
                             <option value="متأخر" ${currentStatus === 'متأخر' ? 'selected' : ''}>متأخر</option>
@@ -972,612 +647,144 @@
             }
 
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ringIndex = rings.findIndex(r => r.name === ringName);
-            if (ringIndex === -1) return;
+            const ring = rings.find(r => r.name === ringName);
+            if (!ring || !Array.isArray(ring.studentsData) || ring.studentsData.length === 0) {
+                alert('لا توجد بيانات طلاب لحفظها.');
+                return;
+            }
 
-            const ringObj = rings[ringIndex];
-            const selects = document.querySelectorAll('.attendance-status-select');
+            const today = getLocalDateKey();
+            const logs = JSON.parse(localStorage.getItem('mamma_student_attendance') || '[]');
+            const selects = document.querySelectorAll('#attendance-students-body .attendance-status-select');
             const summary = [];
 
             for (const sel of selects) {
-                const idx = Number(sel.getAttribute('data-student-index'));
-                const st = ringObj.studentsData[idx];
+                const idx = Number(sel.dataset.studentIndex);
+                const st = ring.studentsData[idx];
                 if (!st) continue;
 
-                const newStatus = sel.value;
-                st.attendanceStatus = newStatus;
-                if (newStatus === 'غائب') {
-                    st.absentDays = Number(st.absentDays || 0) + 1;
-                }
-                summary.push(`${st.name}: ${newStatus}`);
+                const status = sel.value;
+                const previousStatus = st.attendanceStatus;
+                st.attendanceStatus = status;
 
-                if (cloudStorage && (st.id || st.identity)) {
+                if (st.lastAttendanceDate !== today) {
+                    if (status === 'غائب') {
+                        st.absentDays = Number(st.absentDays || 0) + 1;
+                    } else if (status === 'حاضر' || status === 'متأخر') {
+                        st.presentDays = Number(st.presentDays || 0) + 1;
+                    }
+                    st.lastAttendanceDate = today;
+                } else if (previousStatus !== status) {
+                    if (previousStatus === 'غائب' && status !== 'غائب') {
+                        st.absentDays = Math.max(0, Number(st.absentDays || 0) - 1);
+                    } else if (previousStatus !== 'غائب' && status === 'غائب') {
+                        st.absentDays = Number(st.absentDays || 0) + 1;
+                    }
+                }
+
+                if (cloudStorage && st.id) {
                     try {
                         await cloudStorage.supervisorMarkStudentAttendance({
-                            studentId: String(st.id || st.identity),
-                            halaqaId: ringObj.id || null,
-                            status: arAttendanceToCode(newStatus),
-                            recordDate: getLocalDateKey()
+                            studentId: String(st.id),
+                            halaqaId: ring.id || null,
+                            status: arAttendanceToCode(status),
+                            recordDate: today
                         });
                     } catch (err) {
-                        console.warn('تعذر حفظ تحضير الطالب في السحابة:', err);
-                    }
-                }
-            }
-
-            localStorage.setItem('mamma_rings', JSON.stringify(rings));
-            loadStudentsForAttendance();
-            await refreshStudentProgressStats();
-
-            if (typeof syncToCloud === 'function') {
-                syncToCloud('تحضير غياب الطلاب', getActiveUserName(), `الحلقة: ${ringName} | ${summary.join('، ')}`, {
-                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.ATTENDANCE : undefined
-                });
-            }
-
-            alert('تم حفظ تحضير الطلاب بنجاح.');
-        }
-
-        async function addNewStudentToRing() {
-            const nameInput = document.getElementById('new-st-name');
-            const phoneInput = document.getElementById('new-st-phone');
-            const idInput = document.getElementById('new-st-id');
-            const birthInput = document.getElementById('new-st-birthdate');
-            const gradeInput = document.getElementById('new-st-grade');
-            const statusInput = document.getElementById('new-st-status');
-            const ringInput = document.getElementById('new-st-ring');
-
-            const name = nameInput ? nameInput.value.trim() : '';
-            const parentPhone = phoneInput ? phoneInput.value.trim() : '';
-            const identity = idInput ? idInput.value.trim() : '';
-            const ageBirth = birthInput ? birthInput.value.trim() : '';
-            const grade = gradeInput ? gradeInput.value.trim() : '';
-            const status = statusInput ? statusInput.value.trim() : 'أخضر';
-            const ringName = ringInput ? ringInput.value.trim() : '';
-
-            if (!name) {
-                alert('يرجى إدخال اسم الطالب.');
-                return;
-            }
-
-            if (!ringName) {
-                alert('يرجى اختيار الحلقة المضاف لها الطالب.');
-                return;
-            }
-
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const foundRing = rings.find(r => r.name === ringName);
-
-            if (!foundRing) {
-                alert('الحلقة المختارة غير موجودة.');
-                return;
-            }
-
-            if (cloudStorage) {
-                if (!identity) {
-                    alert('يرجى إدخال رقم هوية الطالب للحفظ السحابي.');
-                    return;
-                }
-                try {
-                    await cloudStorage.supervisorAddStudent({
-                        id: identity,
-                        fullName: name,
-                        birthDate: ageBirth || null,
-                        statusColor: arStatusToColorCode(status),
-                        guardianPhone: parentPhone,
-                        academicStage: grade,
-                        isPaid: false,
-                        halaqaId: foundRing.id || null
-                    });
-                    await syncRingsFromCloud();
-                } catch (err) {
-                    alert(err?.message || 'تعذر إضافة الطالب في السحابة.');
-                    return;
-                }
-            } else {
-                if (!Array.isArray(foundRing.studentsData)) {
-                    foundRing.studentsData = [];
-                }
-                foundRing.studentsData.push({
-                    id: identity || `${Date.now()}`,
-                    name,
-                    parentPhone,
-                    identity,
-                    ageBirth,
-                    grade,
-                    status,
-                    paymentStatus: 'لم يسدد',
-                    attendanceStatus: 'حاضر',
-                    absentDays: 0,
-                    points: 0
-                });
-                foundRing.studentsCount = `${foundRing.studentsData.length} طالباً`;
-                localStorage.setItem('mamma_rings', JSON.stringify(rings));
-            }
-
-            loadRingsDropdowns();
-            document.getElementById('new-st-ring').value = ringName;
-            populateAllStudentsSelects();
-
-            if (document.getElementById('manage-ring-select').value === ringName) {
-                onManageRingSelected();
-            }
-            if (document.getElementById('attendance-ring-select').value === ringName) {
-                loadStudentsForAttendance();
-            }
-            if (document.getElementById('points-ring-select').value === ringName) {
-                loadStudentsForPointsTable();
-            }
-
-            if (typeof syncToCloud === 'function') {
-                syncToCloud('إضافة طالب جديد', getActiveUserName(), `الطالب: ${name} | الحلقة: ${ringName}`, {
-                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STUDENTS : undefined
-                });
-            }
-
-            if (nameInput) nameInput.value = '';
-            if (phoneInput) phoneInput.value = '';
-            if (idInput) idInput.value = '';
-            if (birthInput) birthInput.value = '';
-            if (gradeInput) gradeInput.value = '';
-            if (statusInput) statusInput.value = 'أخضر';
-
-            alert('تمت إضافة الطالب إلى الحلقة بنجاح.');
-        }
-
-        function onManageRingSelected() {
-            const ringName = document.getElementById('manage-ring-select').value;
-            const tbody = document.getElementById('manage-students-body');
-            updatePaymentStatsBox(ringName);
-
-            if (!ringName) {
-                tbody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض بيانات الطلاب.</td></tr>`;
-                return;
-            }
-
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ring = rings.find(r => r.name === ringName);
-            const students = (ring && Array.isArray(ring.studentsData)) ? ring.studentsData : [];
-
-            if (students.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: var(--gray);">لا يوجد طلاب في هذه الحلقة.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = '';
-            students.forEach((st, idx) => {
-                const badgeClass =
-                    st.status === 'أصفر' ? 'status-yellow' :
-                    st.status === 'أحمر' ? 'status-red' :
-                    st.status === 'برتقالي' ? 'status-orange' : 'status-green';
-                const payClass = st.paymentStatus === 'مسدد' ? 'paid' : 'unpaid';
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <strong>${escapeHtml(st.name)}</strong>
-                        <span class="status-badge ${badgeClass}">${escapeHtml(st.status || 'أخضر')}</span>
-                        <span class="payment-badge ${payClass}">${escapeHtml(st.paymentStatus || 'لم يسدد')}</span><br>
-                        <small style="color: var(--gray);">
-                            الهوية: ${escapeHtml(st.identity || st.id || '-')} | الجوال: ${escapeHtml(st.parentPhone || '-')} | المرحلة: ${escapeHtml(st.grade || '-')} | النقاط: ${Number(st.points || 0)}
-                        </small>
-                    </td>
-                    <td>
-                        <button type="button" class="btn btn-warning" style="padding: 6px 10px; font-size: 0.85rem;" onclick="editStudentInRing(${idx})"><i class="fa-solid fa-pen"></i> تعديل</button>
-                        <button type="button" class="btn btn-danger" style="padding: 6px 10px; font-size: 0.85rem;" onclick="deleteStudentFromRing(${idx})"><i class="fa-solid fa-trash"></i> حذف</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        async function editStudentInRing(studentIndex) {
-            const ringName = document.getElementById('manage-ring-select').value;
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ring = rings.find(r => r.name === ringName);
-            if (!ring || !ring.studentsData || !ring.studentsData[studentIndex]) return;
-
-            const st = ring.studentsData[studentIndex];
-            const newName = prompt('تعديل اسم الطالب:', st.name || '');
-            if (newName === null || !newName.trim()) return;
-
-            const newPhone = prompt('تعديل رقم ولي الأمر:', st.parentPhone || '');
-            const newGrade = prompt('تعديل المرحلة الدراسية:', st.grade || '');
-            const newPay = prompt('حالة السداد (مسدد / لم يسدد):', st.paymentStatus || 'لم يسدد');
-
-            st.name = newName.trim();
-            if (newPhone !== null) st.parentPhone = newPhone.trim();
-            if (newGrade !== null) st.grade = newGrade.trim();
-            if (newPay && (newPay.trim() === 'مسدد' || newPay.trim() === 'لم يسدد')) {
-                st.paymentStatus = newPay.trim();
-            }
-
-            if (cloudStorage && cloudClient && (st.id || st.identity)) {
-                try {
-                    await cloudClient
-                        .from('students')
-                        .update({
-                            full_name: st.name,
-                            guardian_phone: st.parentPhone || null,
-                            academic_stage: st.grade || null,
-                            is_paid: st.paymentStatus === 'مسدد'
-                        })
-                        .eq('id', String(st.id || st.identity));
-                } catch (err) {
-                    console.warn('تعذر تحديث بيانات الطالب في السحابة:', err);
-                }
-            }
-
-            localStorage.setItem('mamma_rings', JSON.stringify(rings));
-            onManageRingSelected();
-            populateAllStudentsSelects();
-
-            if (typeof syncToCloud === 'function') {
-                syncToCloud('تعديل بيانات طالب', getActiveUserName(), `الطالب: ${st.name} | الحلقة: ${ringName}`, {
-                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STUDENTS : undefined
-                });
-            }
-        }
-
-        async function deleteStudentFromRing(studentIndex) {
-            const ringName = document.getElementById('manage-ring-select').value;
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ring = rings.find(r => r.name === ringName);
-            if (!ring || !ring.studentsData || !ring.studentsData[studentIndex]) return;
-
-            const removed = ring.studentsData[studentIndex];
-            if (!confirm(`هل أنت متأكد من حذف الطالب (${removed.name}) من حلقة (${ringName})؟`)) return;
-
-            if (cloudStorage && (removed.id || removed.identity)) {
-                try {
-                    await cloudStorage.supervisorDeleteStudent(String(removed.id || removed.identity));
-                } catch (err) {
-                    alert(err?.message || 'تعذر حذف الطالب من السحابة.');
-                    return;
-                }
-            }
-
-            ring.studentsData.splice(studentIndex, 1);
-            ring.studentsCount = `${ring.studentsData.length} طالباً`;
-            localStorage.setItem('mamma_rings', JSON.stringify(rings));
-            onManageRingSelected();
-            populateAllStudentsSelects();
-
-            if (typeof syncToCloud === 'function') {
-                syncToCloud('حذف طالب', getActiveUserName(), `الطالب: ${removed.name} | الحلقة: ${ringName}`, {
-                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STUDENTS : undefined
-                });
-            }
-        }
-
-        async function saveIdealRing() {
-            const ringName = document.getElementById('ideal-ring-select').value;
-            const date = document.getElementById('ideal-ring-date').value || getLocalDateKey();
-            if (!ringName) {
-                alert('يرجى اختيار الحلقة.');
-                return;
-            }
-
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ringObj = rings.find(r => r.name === ringName);
-            if (cloudStorage && ringObj?.id) {
-                try {
-                    await cloudStorage.supervisorAddSelection({
-                        selectionType: 'ideal_halaqa',
-                        halaqaId: ringObj.id,
-                        periodDate: date
-                    });
-                } catch (err) {
-                    console.warn('تعذر حفظ الحلقة المثالية في السحابة:', err);
-                }
-            }
-
-            const list = JSON.parse(localStorage.getItem('mamma_ideal_rings') || '[]');
-            list.unshift({ ringName, date });
-            localStorage.setItem('mamma_ideal_rings', JSON.stringify(list));
-            renderIdealRingTable();
-
-            if (typeof syncToCloud === 'function') {
-                syncToCloud('تسجيل الحلقة المثالية', getActiveUserName(), `الحلقة: ${ringName} | التاريخ: ${date}`, {
-                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.IDEAL_RING : undefined
-                });
-            }
-        }
-
-        function renderIdealRingTable() {
-            const list = JSON.parse(localStorage.getItem('mamma_ideal_rings') || '[]');
-            const tbody = document.getElementById('ideal-ring-body');
-            if (!tbody) return;
-            if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: var(--gray);">لا توجد سجلات للحلقة المثالية بعد.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = list.map(item => `
-                <tr>
-                    <td>${escapeHtml(item.ringName)}</td>
-                    <td>${escapeHtml(item.date)}</td>
-                </tr>
-            `).join('');
-        }
-
-        async function saveTajweedEntry() {
-            const ringName = document.getElementById('tajweed-ring-select').value;
-            const date = document.getElementById('tajweed-date').value || getLocalDateKey();
-            if (!ringName) {
-                alert('يرجى اختيار الحلقة.');
-                return;
-            }
-
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ringObj = rings.find(r => r.name === ringName);
-            if (cloudStorage && ringObj?.id) {
-                try {
-                    await cloudStorage.supervisorAddSelection({
-                        selectionType: 'tajweed',
-                        halaqaId: ringObj.id,
-                        periodDate: date
-                    });
-                } catch (err) {
-                    console.warn('تعذر حفظ سجل التجويد في السحابة:', err);
-                }
-            }
-
-            const list = JSON.parse(localStorage.getItem('mamma_tajweed_entries') || '[]');
-            list.unshift({ ringName, date });
-            localStorage.setItem('mamma_tajweed_entries', JSON.stringify(list));
-            renderTajweedTable();
-
-            if (typeof syncToCloud === 'function') {
-                syncToCloud('تسجيل سجل التجويد', getActiveUserName(), `الحلقة: ${ringName} | التاريخ: ${date}`, {
-                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.TAJWEED : undefined
-                });
-            }
-        }
-
-        function renderTajweedTable() {
-            const list = JSON.parse(localStorage.getItem('mamma_tajweed_entries') || '[]');
-            const tbody = document.getElementById('tajweed-body');
-            if (!tbody) return;
-            if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: var(--gray);">لا توجد سجلات للتجويد بعد.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = list.map(item => `
-                <tr>
-                    <td>${escapeHtml(item.ringName)}</td>
-                    <td>${escapeHtml(item.date)}</td>
-                </tr>
-            `).join('');
-        }
-
-        async function saveRingKnight() {
-            const ringName = document.getElementById('knight-ring-select').value;
-            const studentName = document.getElementById('knight-student-select').value;
-            const date = document.getElementById('knight-date').value || getLocalDateKey();
-            if (!ringName || !studentName) {
-                alert('يرجى اختيار الحلقة والطالب.');
-                return;
-            }
-
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ringObj = rings.find(r => r.name === ringName);
-            const studentObj = (ringObj?.studentsData || []).find(s => s.name === studentName);
-
-            if (cloudStorage) {
-                try {
-                    await cloudStorage.supervisorAddSelection({
-                        selectionType: 'halaqat_knight',
-                        halaqaId: ringObj?.id || null,
-                        studentId: studentObj?.id || studentObj?.identity || null,
-                        periodDate: date
-                    });
-                } catch (err) {
-                    console.warn('تعذر حفظ فارس الحلقات في السحابة:', err);
-                }
-            }
-
-            const list = JSON.parse(localStorage.getItem('mamma_ring_knights') || '[]');
-            list.unshift({ ringName, studentName, date });
-            localStorage.setItem('mamma_ring_knights', JSON.stringify(list));
-            renderRingKnightTable();
-
-            if (typeof syncToCloud === 'function') {
-                syncToCloud('تسجيل فارس الحلقات', getActiveUserName(), `الحلقة: ${ringName} | الطالب: ${studentName} | التاريخ: ${date}`, {
-                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.RING_KNIGHT : undefined
-                });
-            }
-        }
-
-        function renderRingKnightTable() {
-            const list = JSON.parse(localStorage.getItem('mamma_ring_knights') || '[]');
-            const tbody = document.getElementById('knight-body');
-            if (!tbody) return;
-            if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد سجلات لفارس الحلقات بعد.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = list.map(item => `
-                <tr>
-                    <td>${escapeHtml(item.ringName)}</td>
-                    <td>${escapeHtml(item.studentName)}</td>
-                    <td>${escapeHtml(item.date)}</td>
-                </tr>
-            `).join('');
-        }
-
-        function saveStageProgressEntry() {
-            const studentName = document.getElementById('stage-student-select').value;
-            const completedStage = document.getElementById('stage-completed').value.trim();
-            const nextStage = document.getElementById('stage-next').value.trim();
-            if (!studentName || !completedStage) {
-                alert('يرجى اختيار الطالب وإدخال المرحلية المجتازة.');
-                return;
-            }
-            const list = JSON.parse(localStorage.getItem('mamma_stage_progress') || '[]');
-            list.unshift({ studentName, completedStage, nextStage });
-            localStorage.setItem('mamma_stage_progress', JSON.stringify(list));
-            renderStageProgressTable();
-
-            document.getElementById('stage-completed').value = '';
-            document.getElementById('stage-next').value = '';
-
-            if (typeof syncToCloud === 'function') {
-                syncToCloud('تحديث المرحليات', getActiveUserName(), `الطالب: ${studentName} | المجتازة: ${completedStage} | القادمة: ${nextStage}`, {
-                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STAGE_PROGRESS : undefined
-                });
-            }
-        }
-
-        function renderStageProgressTable() {
-            const list = JSON.parse(localStorage.getItem('mamma_stage_progress') || '[]');
-            const tbody = document.getElementById('stage-progress-body');
-            if (!tbody) return;
-            if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا توجد سجلات للمرحليات بعد.</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = list.map(item => `
-                <tr>
-                    <td>${escapeHtml(item.studentName)}</td>
-                    <td>${escapeHtml(item.completedStage)}</td>
-                    <td>${escapeHtml(item.nextStage || '-')}</td>
-                </tr>
-            `).join('');
-        }
-
-        function renderExtraSections() {
-            renderIdealRingTable();
-            renderTajweedTable();
-            renderRingKnightTable();
-            renderStageProgressTable();
-        }
-
-        function loadStudentsForPointsTable() {
-            const ringName = document.getElementById('points-ring-select').value;
-            const tbody = document.getElementById('points-table-body');
-            if (!ringName) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض الطلاب ورصد النقاط.</td></tr>`;
-                return;
-            }
-
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ring = rings.find(r => r.name === ringName);
-            const students = (ring && Array.isArray(ring.studentsData)) ? ring.studentsData : [];
-
-            if (students.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا يوجد طلاب في هذه الحلقة.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = '';
-            students.forEach((st, idx) => {
-                const currentPts = Number(st.points || 0);
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${escapeHtml(st.name)}</strong></td>
-                    <td><input type="number" min="0" class="form-control pts-add-input" data-index="${idx}" placeholder="0"></td>
-                    <td><input type="number" min="0" class="form-control pts-sub-input" data-index="${idx}" placeholder="0"></td>
-                    <td><strong class="pts-total-cell" data-index="${idx}">${currentPts}</strong></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        async function savePointsChanges() {
-            const ringName = document.getElementById('points-ring-select').value;
-            if (!ringName) {
-                alert('يرجى اختيار الحلقة أولاً.');
-                return;
-            }
-
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ringIndex = rings.findIndex(r => r.name === ringName);
-            if (ringIndex === -1) return;
-
-            const addInputs = document.querySelectorAll('.pts-add-input');
-            const subInputs = document.querySelectorAll('.pts-sub-input');
-            const summary = [];
-
-            for (let i = 0; i < addInputs.length; i++) {
-                const addEl = addInputs[i];
-                const idx = Number(addEl.getAttribute('data-index'));
-                const subEl = subInputs[i];
-                const st = rings[ringIndex].studentsData[idx];
-                if (!st) continue;
-
-                const addVal = Number(addEl.value || 0);
-                const subVal = Number(subEl ? subEl.value : 0);
-                const netDelta = addVal - subVal;
-
-                if (cloudStorage && netDelta !== 0 && (st.id || st.identity)) {
-                    try {
-                        await cloudStorage.supervisorAdjustPoints({
-                            studentId: String(st.id || st.identity),
-                            pointsDelta: netDelta,
-                            reason: `رصد نقاط (${ringName})`
-                        });
-                    } catch (err) {
-                        console.warn('تعذر تحديث نقاط الطالب في السحابة:', err);
+                        console.warn('تعذر حفظ التحضير السحابي للطالب:', err);
                     }
                 }
 
-                const updated = Math.max(0, Number(st.points || 0) + netDelta);
-                st.points = updated;
-                summary.push(`${st.name}: ${updated}`);
+                logs.unshift({
+                    ringName: ringName,
+                    studentName: st.name,
+                    status: status,
+                    date: today
+                });
+                summary.push(`${st.name}: ${status}`);
             }
 
-            await syncRingsFromCloud();
             localStorage.setItem('mamma_rings', JSON.stringify(rings));
-            loadStudentsForPointsTable();
-            await refreshStudentProgressStats();
+            localStorage.setItem('mamma_student_attendance', JSON.stringify(logs.slice(0, 1000)));
 
             if (typeof syncToCloud === 'function') {
-                syncToCloud('اعتماد نقاط الطلاب', getActiveUserName(), `الحلقة: ${ringName} | ${summary.join('، ')}`, {
-                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.POINTS : undefined
-                });
+                syncToCloud(
+                    'تحضير غياب طلاب',
+                    getActiveAdminName(),
+                    `الحلقة: ${ringName} | التاريخ: ${today} | ${summary.join(' - ')}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.ATTENDANCE : undefined }
+                );
             }
 
-            alert('تم اعتماد النقاط وتحديثها بنجاح.');
+            alert('تم حفظ التحضير ومزامنته بنجاح.');
         }
 
-        async function resetPointsTable() {
-            const ringName = document.getElementById('points-ring-select').value;
-            if (!ringName) {
-                alert('يرجى اختيار الحلقة أولاً.');
-                return;
-            }
-            if (!confirm(`هل أنت متأكد من تصفير النقاط وحضور/غياب الطلاب وإعادة حالة السداد إلى «لم يسدد»؟`)) return;
+        async function loadAdminInboxMessages() {
+            const tbody = document.getElementById('admin-inbox-body');
+            if (!tbody) return;
 
             if (cloudStorage) {
                 try {
-                    await cloudStorage.supervisorResetCycleWithPoints();
-                } catch (err) {
-                    alert(err?.message || 'تعذر تنفيذ التصفير الشامل في السحابة.');
-                    return;
-                }
+                    const msgs = await cloudStorage.supervisorListInboxMessages();
+                    if (msgs && msgs.length > 0) {
+                        tbody.innerHTML = msgs.map(m => `
+                            <tr>
+                                <td><strong>${escapeHtml(m.sender_name || 'موظف')}</strong></td>
+                                <td>${escapeHtml(m.subject || '-')}</td>
+                                <td>${escapeHtml(m.message_body || '')}</td>
+                                <td>
+                                    <button type="button" class="btn btn-success" style="padding: 5px 10px; font-size: 0.8rem;" onclick="replyToCloudMessage('${escapeHtml(m.id)}')">
+                                        <i class="fa-solid fa-reply"></i> رد / اعتماد
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('');
+                        return;
+                    }
+                } catch {}
             }
 
-            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            rings.forEach(r => {
-                (r.studentsData || []).forEach(st => {
-                    st.points = 0;
-                    st.attendanceStatus = 'حاضر';
-                    st.absentDays = 0;
-                    st.paymentStatus = 'لم يسدد';
-                });
-            });
-
-            localStorage.setItem('mamma_rings', JSON.stringify(rings));
-            updatePaymentStatsBox(ringName);
-            loadStudentsForPointsTable();
-            await refreshStudentProgressStats();
-
-            if (typeof syncToCloud === 'function') {
-                syncToCloud('تصفير نقاط الحلقة', getActiveUserName(), `الحلقة: ${ringName}`, {
-                    sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.POINTS : undefined
-                });
+            const localMsgs = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
+            if (localMsgs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا توجد رسائل واردة حالياً.</td></tr>`;
+                return;
             }
 
-            alert('تم تنفيذ التصفير الشامل بنجاح.');
+            tbody.innerHTML = localMsgs.map((m, i) => `
+                <tr>
+                    <td><strong>${escapeHtml(m.teacher || 'معلم')}</strong></td>
+                    <td>${escapeHtml(m.date || m.time || '-')}</td>
+                    <td>${escapeHtml(m.text || '')}</td>
+                    <td>
+                        <button type="button" class="btn btn-success" style="padding: 5px 10px; font-size: 0.8rem;" onclick="acknowledgeLocalMessage(${i})">
+                            <i class="fa-solid fa-check"></i> اعتماد
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function replyToCloudMessage(messageId) {
+            const replyText = prompt('اكتب رد الإدارة أو ملاحظة الاعتماد:');
+            if (replyText === null || !replyText.trim()) return;
+            if (!cloudStorage) return;
+
+            try {
+                await cloudStorage.supervisorReplyAndApproveMessage(messageId, replyText.trim());
+                alert('تم إرسال الرد واعتماد الرسالة بنجاح.');
+                await loadAdminInboxMessages();
+            } catch (err) {
+                alert(err?.message || 'تعذر الرد على الرسالة.');
+            }
+        }
+
+        function acknowledgeLocalMessage(index) {
+            const msgs = JSON.parse(localStorage.getItem('teachers_messages') || '[]');
+            if (!msgs[index]) return;
+            msgs.splice(index, 1);
+            localStorage.setItem('teachers_messages', JSON.stringify(msgs));
+            loadAdminInboxMessages();
+            alert('تم اعتماد الرسالة.');
         }
 
         async function logout() {
@@ -1586,10 +793,10 @@
                     await cloudStorage.logout();
                 } catch {}
             }
-            sessionStorage.removeItem('current_user_name');
             sessionStorage.removeItem('current_user_role');
-            localStorage.removeItem('current_user_name');
+            sessionStorage.removeItem('current_user_name');
             localStorage.removeItem('current_user_role');
+            localStorage.removeItem('current_user_name');
             window.location.href = 'index.html';
         }
     </script>
