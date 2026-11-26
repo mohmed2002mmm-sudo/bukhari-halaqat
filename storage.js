@@ -719,4 +719,3 @@ function createBukhariStorage(supabaseClient) {
 if (typeof window !== 'undefined') {
   window.createBukhariStorage = createBukhariStorage;
 }
-```[cite: 5, 6]
