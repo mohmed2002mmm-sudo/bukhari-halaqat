@@ -86,6 +86,12 @@
         }
         .form-control:focus { border-color: var(--secondary); outline: none; }
 
+        .points-manual-input {
+            max-width: 140px;
+            padding: 7px 10px;
+            font-size: 0.9rem;
+        }
+
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
         @media(max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
@@ -197,7 +203,7 @@
 
         <!-- تسجيل حضور وغياب الإداري -->
         <div class="card">
-            <h3><i class="fa-solid fa-fingerprint"></i> تسجيل حضور وغياب الإداري</h3>
+            <h3><i class="fa-solid fa-fingerprint"></i> تسجيل حضور وغياب الإداري (الأحد - الأربعاء)</h3>
             <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                 <button type="button" id="admin-present-btn" class="btn" onclick="markAdminAttendance('present')">
                     <i class="fa-solid fa-user-check"></i> تسجيل حضور
@@ -418,20 +424,14 @@
             </div>
         </div>
 
-        <!-- النقاط: إضافة نقاط، خصم نقاط، مجموع النقاط، حفظ، وتصفير النقاط -->
+        <!-- النقاط: إضافة نقاط يدوية، خصم نقاط يدوي، مجموع النقاط، حفظ، وتصفير النقاط -->
         <div class="card">
             <h3><i class="fa-solid fa-star"></i> النقاط</h3>
-            <div class="grid-2">
-                <div class="form-group">
-                    <label>اختر الحلقة</label>
-                    <select id="points-ring-select" class="form-control" onchange="loadStudentsPointsTable()">
-                        <option value="">-- اختر الحلقة --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>مقدار النقاط الافتراضي للزر السريع</label>
-                    <input type="number" id="points-step-input" class="form-control" value="1" min="1" step="1">
-                </div>
+            <div class="form-group">
+                <label>اختر الحلقة</label>
+                <select id="points-ring-select" class="form-control" onchange="loadStudentsPointsTable()">
+                    <option value="">-- اختر الحلقة --</option>
+                </select>
             </div>
 
             <div class="table-wrap">
@@ -439,12 +439,13 @@
                     <thead>
                         <tr>
                             <th>اسم الطالب</th>
+                            <th>إضافة نقاط</th>
+                            <th>خصم نقاط</th>
                             <th>مجموع النقاط</th>
-                            <th>إضافة / خصم وتصفير</th>
                         </tr>
                     </thead>
                     <tbody id="students-points-body">
-                        <tr><td colspan="3" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض نقاط الطلاب.</td></tr>
+                        <tr><td colspan="4" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض نقاط الطلاب.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -530,6 +531,12 @@
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
+        }
+
+        // حصر أيام العمل على الأحد (0)، الاثنين (1)، الثلاثاء (2)، والأربعاء (3)
+        function isAdminWorkingDay(dateObj = new Date()) {
+            const day = dateObj.getDay();
+            return day === 0 || day === 1 || day === 2 || day === 3;
         }
 
         function generateUniqueStudentId() {
@@ -701,11 +708,34 @@
             }
         }
 
-        function checkAdminAttendanceState() {
+        async function checkAdminAttendanceState() {
             const name = getActiveAdminName();
-            const saved = localStorage.getItem(`admin_attendance_${name}_${getLocalDateKey()}`);
+            const todayKey = getLocalDateKey();
+            const storageKey = `admin_attendance_${name}_${todayKey}`;
             const el = document.getElementById('admin-attendance-status');
-            if (saved && el) el.textContent = `حالة اليوم: ${saved}`;
+            let saved = localStorage.getItem(storageKey);
+
+            if (!saved && isAdminWorkingDay(new Date())) {
+                const nowTime = new Date().toLocaleTimeString('ar-SA');
+                saved = `غائب (${nowTime})`;
+                localStorage.setItem(storageKey, saved);
+
+                if (cloudStorage) {
+                    try {
+                        await cloudStorage.recordOwnStaffAttendance('absent', todayKey);
+                    } catch (err) {
+                        console.warn('تعذر تسجيل الغياب التلقائي في السحابة:', err);
+                    }
+                }
+            }
+
+            if (el) {
+                if (saved) {
+                    el.textContent = `حالة اليوم: ${saved}`;
+                } else {
+                    el.textContent = 'اليوم خارج أيام العمل (الأحد - الأربعاء) ولم يتم التسجيل بعد.';
+                }
+            }
         }
 
         async function markAdminAttendance(mode) {
@@ -775,7 +805,7 @@
 
             await syncRingsAndStudentsFromCloud();
             populateRingDropdowns();
-            checkAdminAttendanceState();
+            await checkAdminAttendanceState();
             await loadAdminInboxMessages();
         };
 
@@ -1431,24 +1461,19 @@
             return { students, map: draftPointsByRing[ringName] };
         }
 
-        function getPointsStepAmount() {
-            const raw = Number(document.getElementById('points-step-input')?.value);
-            return (!Number.isNaN(raw) && raw > 0) ? Math.floor(raw) : 1;
-        }
-
         function loadStudentsPointsTable() {
             const ringName = document.getElementById('points-ring-select').value;
             const tbody = document.getElementById('students-points-body');
 
             if (!ringName) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض نقاط الطلاب.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض نقاط الطلاب.</td></tr>`;
                 return;
             }
 
             const { students, map } = ensureRingPointsDraft(ringName);
 
             if (students.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا يوجد طلاب في هذه الحلقة.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--gray);">لا يوجد طلاب في هذه الحلقة.</td></tr>`;
                 return;
             }
 
@@ -1462,36 +1487,65 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${escapeHtml(st.name || '')}</strong></td>
-                    <td><span id="pts-val-${idx}" class="points-badge">${currentPoints}</span></td>
                     <td>
-                        <div class="actions-cell">
-                            <button type="button" class="btn btn-success btn-sm" onclick="adjustStudentDraftPoints('${encodedRing}', '${encodedKey}', ${idx}, 'add')">
-                                <i class="fa-solid fa-plus"></i> إضافة نقاط
-                            </button>
-                            <button type="button" class="btn btn-warning btn-sm" onclick="adjustStudentDraftPoints('${encodedRing}', '${encodedKey}', ${idx}, 'subtract')">
-                                <i class="fa-solid fa-minus"></i> خصم نقاط
-                            </button>
-                        </div>
+                        <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            class="form-control points-manual-input"
+                            placeholder="أدخل النقاط"
+                            onkeydown="handleManualPointsKeydown(event, this, '${encodedRing}', '${encodedKey}', ${idx}, 'add')"
+                            onchange="applyManualPointsInput(this, '${encodedRing}', '${encodedKey}', ${idx}, 'add')"
+                        >
                     </td>
+                    <td>
+                        <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            class="form-control points-manual-input"
+                            placeholder="أدخل الخصم"
+                            onkeydown="handleManualPointsKeydown(event, this, '${encodedRing}', '${encodedKey}', ${idx}, 'subtract')"
+                            onchange="applyManualPointsInput(this, '${encodedRing}', '${encodedKey}', ${idx}, 'subtract')"
+                        >
+                    </td>
+                    <td><span id="pts-val-${idx}" class="points-badge">${currentPoints}</span></td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function adjustStudentDraftPoints(encodedRing, encodedKey, idx, mode) {
+        function handleManualPointsKeydown(event, inputEl, encodedRing, encodedKey, idx, mode) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                applyManualPointsInput(inputEl, encodedRing, encodedKey, idx, mode);
+            }
+        }
+
+        function applyManualPointsInput(inputEl, encodedRing, encodedKey, idx, mode) {
+            if (!inputEl) return;
+            const rawVal = inputEl.value.trim();
+            if (rawVal === '') return;
+
+            const amount = Number(rawVal);
+            if (Number.isNaN(amount) || amount <= 0) {
+                inputEl.value = '';
+                return;
+            }
+
             const ringName = decodeURIComponent(encodedRing);
             const key = decodeURIComponent(encodedKey);
-            const step = getPointsStepAmount();
             const { map } = ensureRingPointsDraft(ringName);
-
             const current = Number(map[key] || 0);
+
             const nextPoints = mode === 'add'
-                ? current + step
-                : Math.max(0, current - step);
+                ? current + amount
+                : Math.max(0, current - amount);
 
             map[key] = nextPoints;
             const badge = document.getElementById(`pts-val-${idx}`);
             if (badge) badge.textContent = String(nextPoints);
+            inputEl.value = '';
         }
 
         function resetRingStudentsPoints() {
@@ -1523,6 +1577,13 @@
                 alert('يرجى اختيار الحلقة أولاً.');
                 return;
             }
+
+            const pendingInputs = document.querySelectorAll('#students-points-body input.points-manual-input');
+            pendingInputs.forEach(inp => {
+                if (inp.value.trim() !== '') {
+                    inp.dispatchEvent(new Event('change'));
+                }
+            });
 
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
             const ring = rings.find(r => r.name === ringName);
