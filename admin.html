@@ -195,11 +195,36 @@
                 </div>
                 <div class="form-group">
                     <label>المرحلة الدراسية</label>
-                    <input type="text" id="new-student-grade" class="form-control" placeholder="مثال: ابتدائي / متوسط / ثانوي">
+                    <select id="new-student-grade" class="form-control">
+                        <option value="">-- اختر المرحلة الدراسية --</option>
+                        <option value="أول ابتدائي">أول ابتدائي</option>
+                        <option value="ثاني ابتدائي">ثاني ابتدائي</option>
+                        <option value="ثالث ابتدائي">ثالث ابتدائي</option>
+                        <option value="رابع ابتدائي">رابع ابتدائي</option>
+                        <option value="خامس ابتدائي">خامس ابتدائي</option>
+                        <option value="سادس ابتدائي">سادس ابتدائي</option>
+                        <option value="أول متوسط">أول متوسط</option>
+                        <option value="ثاني متوسط">ثاني متوسط</option>
+                        <option value="ثالث متوسط">ثالث متوسط</option>
+                        <option value="أول ثانوي">أول ثانوي</option>
+                        <option value="ثاني ثانوي">ثاني ثانوي</option>
+                        <option value="ثالث ثانوي">ثالث ثانوي</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>تاريخ الميلاد</label>
                     <input type="date" id="new-student-birth" class="form-control">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>حالة الطالب</label>
+                    <select id="new-student-status" class="form-control">
+                        <option value="أخضر" selected>أخضر</option>
+                        <option value="أصفر">أصفر</option>
+                        <option value="أحمر">أحمر</option>
+                    </select>
                 </div>
             </div>
 
@@ -334,6 +359,27 @@
             );
         }
 
+        function normalizeStudentStatus(rawStatus) {
+            const val = String(rawStatus || '').trim().toLowerCase();
+            if (val === 'أصفر' || val === 'اصفر' || val === 'yellow') return 'أصفر';
+            if (val === 'أحمر' || val === 'احمر' || val === 'red') return 'أحمر';
+            return 'أخضر';
+        }
+
+        function statusToCloudColor(arStatus) {
+            const norm = normalizeStudentStatus(arStatus);
+            if (norm === 'أصفر') return 'yellow';
+            if (norm === 'أحمر') return 'red';
+            return 'green';
+        }
+
+        function cloudColorToArStatus(colorVal) {
+            const val = String(colorVal || '').trim().toLowerCase();
+            if (val === 'yellow' || val === 'أصفر' || val === 'اصفر') return 'أصفر';
+            if (val === 'red' || val === 'أحمر' || val === 'احمر') return 'أحمر';
+            return 'أخضر';
+        }
+
         function formatBirthDateValue(rawVal) {
             if (rawVal === undefined || rawVal === null || rawVal === '') return '';
 
@@ -410,7 +456,7 @@
             try {
                 const [{ data: halaqatRows, error: hErr }, { data: studentsRows, error: sErr }] = await Promise.all([
                     cloudClient.from('halaqat').select('id, name').order('name', { ascending: true }),
-                    cloudClient.from('students').select('id, full_name, halaqa_id, guardian_phone, academic_stage, birth_date, points')
+                    cloudClient.from('students').select('id, full_name, halaqa_id, guardian_phone, academic_stage, birth_date, points, status_color')
                 ]);
                 if (hErr) throw hErr;
                 if (sErr) throw sErr;
@@ -446,7 +492,7 @@
                                 lastAttendanceDate: prevSt.lastAttendanceDate || '',
                                 paid: Boolean(prevSt.paid),
                                 points: Number(s.points || prevSt.points || 0),
-                                status: prevSt.status || 'أخضر'
+                                status: s.status_color ? cloudColorToArStatus(s.status_color) : (prevSt.status || 'أخضر')
                             };
                         });
 
@@ -569,11 +615,12 @@
             });
         }
 
-        async function insertStudentToCloud({ studentId, name, halaqaId, phone, grade, birthDate }) {
+        async function insertStudentToCloud({ studentId, name, halaqaId, phone, grade, birthDate, status }) {
             const cleanId = String(studentId || '').trim();
             const cleanBirth = formatBirthDateValue(birthDate) || null;
             const cleanPhone = phone || null;
             const cleanGrade = grade || null;
+            const statusColor = statusToCloudColor(status);
 
             if (cloudClient) {
                 const { data: existing, error: checkErr } = await cloudClient
@@ -597,7 +644,7 @@
                     academic_stage: cleanGrade,
                     birth_date: cleanBirth,
                     points: 0,
-                    status_color: 'green'
+                    status_color: statusColor
                 };
 
                 const { data, error } = await cloudClient
@@ -632,7 +679,7 @@
             return cleanId;
         }
 
-        async function createSingleStudentRecord({ studentId, name, ringName, phone, grade, birthDate }) {
+        async function createSingleStudentRecord({ studentId, name, ringName, phone, grade, birthDate, status }) {
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
             const cleanRingName = String(ringName || '').trim();
             const ring = rings.find(r =>
@@ -650,6 +697,7 @@
             }
 
             const cleanBirth = formatBirthDateValue(birthDate) || null;
+            const normalizedStatus = normalizeStudentStatus(status);
             let createdId = finalId;
 
             if (ring.id) {
@@ -659,7 +707,8 @@
                     halaqaId: ring.id,
                     phone,
                     grade,
-                    birthDate: cleanBirth
+                    birthDate: cleanBirth,
+                    status: normalizedStatus
                 });
             }
 
@@ -676,7 +725,7 @@
                 lastAttendanceDate: '',
                 paid: false,
                 points: 0,
-                status: 'أخضر'
+                status: normalizedStatus
             });
 
             localStorage.setItem('mamma_rings', JSON.stringify(rings));
@@ -685,7 +734,7 @@
                 syncToCloud(
                     'إضافة طالب',
                     getActiveAdminName(),
-                    `الهوية: ${createdId} | الطالب: ${name} | الحلقة: ${ring.name} | الجوال: ${phone || '-'} | المرحلة: ${grade || '-'} | الميلاد: ${cleanBirth || '-'}`,
+                    `الهوية: ${createdId} | الطالب: ${name} | الحلقة: ${ring.name} | الحالة: ${normalizedStatus} | الجوال: ${phone || '-'} | المرحلة: ${grade || '-'} | الميلاد: ${cleanBirth || '-'}`,
                     { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STUDENTS : undefined }
                 );
             }
@@ -700,6 +749,7 @@
             const phone = document.getElementById('new-student-phone').value.trim();
             const grade = document.getElementById('new-student-grade').value.trim();
             const birthDate = document.getElementById('new-student-birth').value.trim();
+            const status = document.getElementById('new-student-status').value;
 
             if (!studentId || !name || !ringName) {
                 alert('يرجى إدخال رقم هوية الطالب واسم الطالب واختيار الحلقة.');
@@ -713,7 +763,8 @@
                     ringName,
                     phone,
                     grade,
-                    birthDate
+                    birthDate,
+                    status
                 });
 
                 document.getElementById('new-student-id').value = '';
@@ -721,6 +772,7 @@
                 document.getElementById('new-student-phone').value = '';
                 document.getElementById('new-student-grade').value = '';
                 document.getElementById('new-student-birth').value = '';
+                document.getElementById('new-student-status').value = 'أخضر';
 
                 if (document.getElementById('attendance-ring-select').value === res.ringName) {
                     loadStudentsForAttendance();
@@ -799,7 +851,8 @@
                             ringName: colB,
                             phone: colC,
                             grade: colD,
-                            birthDate: colF
+                            birthDate: colF,
+                            status: 'أخضر'
                         });
                         addedCount++;
                     } catch (rowErr) {
