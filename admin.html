@@ -50,9 +50,11 @@
         }
         .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
         .btn:disabled { opacity: 0.65; cursor: not-allowed; }
+        .btn-sm { padding: 6px 10px; font-size: 0.82rem; border-radius: 6px; }
         .btn-danger { background-color: var(--danger); }
         .btn-info { background-color: #0077b6; color: white; }
         .btn-success { background-color: #2a9d8f; color: white; }
+        .btn-warning { background-color: #e9c46a; color: #1f2933; }
 
         .card {
             background: white;
@@ -99,9 +101,12 @@
             margin-bottom: 15px;
         }
 
-        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .data-table th, .data-table td { padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6; font-size: 0.9rem; }
+        .table-wrap { width: 100%; overflow-x: auto; }
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 760px; }
+        .data-table th, .data-table td { padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6; font-size: 0.9rem; vertical-align: middle; }
         .data-table th { background-color: #f1f3f5; color: var(--primary); }
+
+        .actions-cell { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
         .whatsapp-btn {
             background-color: #25d366;
@@ -130,6 +135,22 @@
             font-size: 0.85rem;
             color: var(--gray);
             line-height: 1.7;
+        }
+
+        .edit-box {
+            margin-top: 18px;
+            background: #f8faf9;
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            padding: 18px;
+        }
+        .edit-box h4 {
+            color: var(--primary);
+            margin-bottom: 14px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
     </style>
 
@@ -261,24 +282,120 @@
 
             <div class="stats-box" id="payment-stats-box">نسبة التسديد: 0% | المسددون: 0 | غير المسددين: 0</div>
 
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>اسم الطالب</th>
-                        <th>الحالة اليومية</th>
-                        <th>رقم ولي الأمر</th>
-                        <th>إشعار واتساب</th>
-                    </tr>
-                </thead>
-                <tbody id="attendance-students-body">
-                    <tr><td colspan="4" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض الطلاب المضافين.</td></tr>
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>اسم الطالب</th>
+                            <th>الحالة اليومية</th>
+                            <th>رقم ولي الأمر</th>
+                            <th>إشعار واتساب</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-students-body">
+                        <tr><td colspan="4" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض الطلاب المضافين.</td></tr>
+                    </tbody>
+                </table>
+            </div>
 
             <div style="margin-top: 15px;">
                 <button type="button" class="btn" onclick="saveAttendanceChanges()">
                     <i class="fa-solid fa-floppy-disk"></i> حفظ ومزامنة التحضير
                 </button>
+            </div>
+        </div>
+
+        <!-- بيانات الطلاب: تعديل، حذف، نقل لحلقة أخرى، وحالة السداد -->
+        <div class="card">
+            <h3><i class="fa-solid fa-users-gear"></i> بيانات الطلاب</h3>
+            <div class="form-group">
+                <label>اختر الحلقة</label>
+                <select id="students-data-ring-select" class="form-control" onchange="loadStudentsManagementTable()">
+                    <option value="">-- اختر الحلقة --</option>
+                </select>
+            </div>
+
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>رقم الهوية</th>
+                            <th>اسم الطالب</th>
+                            <th>رقم ولي الأمر</th>
+                            <th>المرحلة الدراسية</th>
+                            <th>تاريخ الميلاد</th>
+                            <th>الحالة</th>
+                            <th>حالة السداد</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="students-management-body">
+                        <tr><td colspan="8" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض بيانات الطلاب.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- نموذج تعديل بيانات طالب محدد -->
+            <div id="edit-student-panel" class="edit-box" style="display: none;">
+                <h4><i class="fa-solid fa-pen-to-square"></i> تعديل بيانات الطالب: <span id="edit-student-id-label"></span></h4>
+                <input type="hidden" id="edit-student-original-id">
+                <div class="grid-3">
+                    <div class="form-group">
+                        <label>اسم الطالب</label>
+                        <input type="text" id="edit-student-name" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم ولي الأمر</label>
+                        <input type="text" id="edit-student-phone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>المرحلة الدراسية</label>
+                        <select id="edit-student-grade" class="form-control">
+                            <option value="">-- اختر المرحلة الدراسية --</option>
+                            <option value="أول ابتدائي">أول ابتدائي</option>
+                            <option value="ثاني ابتدائي">ثاني ابتدائي</option>
+                            <option value="ثالث ابتدائي">ثالث ابتدائي</option>
+                            <option value="رابع ابتدائي">رابع ابتدائي</option>
+                            <option value="خامس ابتدائي">خامس ابتدائي</option>
+                            <option value="سادس ابتدائي">سادس ابتدائي</option>
+                            <option value="أول متوسط">أول متوسط</option>
+                            <option value="ثاني متوسط">ثاني متوسط</option>
+                            <option value="ثالث متوسط">ثالث متوسط</option>
+                            <option value="أول ثانوي">أول ثانوي</option>
+                            <option value="ثاني ثانوي">ثاني ثانوي</option>
+                            <option value="ثالث ثانوي">ثالث ثانوي</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid-3">
+                    <div class="form-group">
+                        <label>تاريخ الميلاد</label>
+                        <input type="date" id="edit-student-birth" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>حالة الطالب</label>
+                        <select id="edit-student-status" class="form-control">
+                            <option value="أخضر">أخضر</option>
+                            <option value="أصفر">أصفر</option>
+                            <option value="أحمر">أحمر</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>حالة السداد</label>
+                        <select id="edit-student-paid" class="form-control">
+                            <option value="unpaid">لم يتم السداد</option>
+                            <option value="paid">سدد</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-success" onclick="saveStudentEdit()">
+                        <i class="fa-solid fa-check"></i> حفظ التعديلات
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="cancelStudentEdit()">
+                        <i class="fa-solid fa-xmark"></i> إلغاء
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -594,9 +711,11 @@
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
             const newRingSel = document.getElementById('new-student-ring');
             const attRingSel = document.getElementById('attendance-ring-select');
+            const dataRingSel = document.getElementById('students-data-ring-select');
 
             if (newRingSel) newRingSel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
             if (attRingSel) attRingSel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+            if (dataRingSel) dataRingSel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
 
             rings.forEach(r => {
                 if (!r || !r.name) return;
@@ -612,7 +731,22 @@
                     o2.textContent = r.name;
                     attRingSel.appendChild(o2);
                 }
+                if (dataRingSel) {
+                    const o3 = document.createElement('option');
+                    o3.value = r.name;
+                    o3.textContent = r.name;
+                    dataRingSel.appendChild(o3);
+                }
             });
+        }
+
+        function refreshActiveViewsForRing(ringName) {
+            if (document.getElementById('attendance-ring-select').value === ringName) {
+                loadStudentsForAttendance();
+            }
+            if (document.getElementById('students-data-ring-select').value === ringName) {
+                loadStudentsManagementTable();
+            }
         }
 
         async function insertStudentToCloud({ studentId, name, halaqaId, phone, grade, birthDate, status }) {
@@ -774,9 +908,7 @@
                 document.getElementById('new-student-birth').value = '';
                 document.getElementById('new-student-status').value = 'أخضر';
 
-                if (document.getElementById('attendance-ring-select').value === res.ringName) {
-                    loadStudentsForAttendance();
-                }
+                refreshActiveViewsForRing(res.ringName);
                 alert(`تمت إضافة الطالب (${name}) بهوية فريدة (${res.studentId}) إلى حلقة (${res.ringName}) بنجاح.`);
             } catch (err) {
                 alert(err?.message || 'تعذر إضافة الطالب.');
@@ -860,10 +992,11 @@
                     }
                 }
 
-                const selectedRing = document.getElementById('attendance-ring-select').value;
-                if (selectedRing) {
-                    loadStudentsForAttendance();
-                }
+                const attRing = document.getElementById('attendance-ring-select').value;
+                if (attRing) loadStudentsForAttendance();
+
+                const dataRing = document.getElementById('students-data-ring-select').value;
+                if (dataRing) loadStudentsManagementTable();
 
                 let summaryMsg = `تمت إضافة (${addedCount}) طالب بنجاح من ملف الإكسل.`;
                 if (skippedReasons.length > 0) {
@@ -968,6 +1101,246 @@
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        function loadStudentsManagementTable() {
+            const ringName = document.getElementById('students-data-ring-select').value;
+            const tbody = document.getElementById('students-management-body');
+            cancelStudentEdit();
+
+            if (!ringName) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض بيانات الطلاب.</td></tr>`;
+                return;
+            }
+
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const ring = rings.find(r => r.name === ringName);
+            const students = (ring && Array.isArray(ring.studentsData)) ? ring.studentsData : [];
+
+            if (students.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--gray);">لا يوجد طلاب في هذه الحلقة.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            students.forEach((st, idx) => {
+                const isPaid = Boolean(st.paid);
+                const statusLabel = normalizeStudentStatus(st.status);
+                const encodedId = encodeURIComponent(String(st.id ?? idx));
+                const encodedRing = encodeURIComponent(String(ringName));
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(st.id || '-')}</strong></td>
+                    <td><strong>${escapeHtml(st.name || '')}</strong></td>
+                    <td>${escapeHtml(st.parentPhone || '-')}</td>
+                    <td>${escapeHtml(st.grade || '-')}</td>
+                    <td>${escapeHtml(st.birthDate || '-')}</td>
+                    <td>${escapeHtml(statusLabel)}</td>
+                    <td>
+                        <select class="form-control" style="min-width: 135px;" onchange="updateStudentPaymentStatus('${encodedRing}', '${encodedId}', ${idx}, this.value)">
+                            <option value="unpaid" ${!isPaid ? 'selected' : ''}>لم يتم السداد</option>
+                            <option value="paid" ${isPaid ? 'selected' : ''}>سدد</option>
+                        </select>
+                    </td>
+                    <td>
+                        <div class="actions-cell">
+                            <button type="button" class="btn btn-info btn-sm" onclick="openEditStudentForm('${encodedRing}', '${encodedId}', ${idx})">
+                                <i class="fa-solid fa-pen"></i> تعديل
+                            </button>
+                            <button type="button" class="btn btn-warning btn-sm" onclick="transferStudentToAnotherRing('${encodedRing}', '${encodedId}', ${idx})">
+                                <i class="fa-solid fa-right-left"></i> نقل لحلقة أخرى
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="deleteStudentRecord('${encodedRing}', '${encodedId}', ${idx})">
+                                <i class="fa-solid fa-trash"></i> حذف
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function findStudentEntry(rings, ringName, studentId, idx) {
+            const ring = rings.find(r => r.name === ringName);
+            if (!ring || !Array.isArray(ring.studentsData)) return null;
+
+            let studentIdx = -1;
+            if (studentId) {
+                studentIdx = ring.studentsData.findIndex(s => String(s.id || '') === String(studentId));
+            }
+            if (studentIdx === -1 && typeof idx === 'number' && ring.studentsData[idx]) {
+                studentIdx = idx;
+            }
+            if (studentIdx === -1) return null;
+
+            return { ring, student: ring.studentsData[studentIdx], studentIdx };
+        }
+
+        function updateStudentPaymentStatus(encodedRing, encodedId, idx, nextVal) {
+            const ringName = decodeURIComponent(encodedRing);
+            const studentId = decodeURIComponent(encodedId);
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const entry = findStudentEntry(rings, ringName, studentId, idx);
+            if (!entry) return;
+
+            entry.student.paid = (nextVal === 'paid');
+            localStorage.setItem('mamma_rings', JSON.stringify(rings));
+            updatePaymentStatsBox(ringName);
+        }
+
+        function openEditStudentForm(encodedRing, encodedId, idx) {
+            const ringName = decodeURIComponent(encodedRing);
+            const studentId = decodeURIComponent(encodedId);
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const entry = findStudentEntry(rings, ringName, studentId, idx);
+            if (!entry) return;
+
+            const st = entry.student;
+            document.getElementById('edit-student-original-id').value = String(st.id ?? '');
+            document.getElementById('edit-student-id-label').textContent = `${st.id || '-'} (${ringName})`;
+            document.getElementById('edit-student-name').value = st.name || '';
+            document.getElementById('edit-student-phone').value = st.parentPhone || '';
+            document.getElementById('edit-student-grade').value = st.grade || '';
+            document.getElementById('edit-student-birth').value = formatBirthDateValue(st.birthDate || '');
+            document.getElementById('edit-student-status').value = normalizeStudentStatus(st.status);
+            document.getElementById('edit-student-paid').value = st.paid ? 'paid' : 'unpaid';
+            document.getElementById('edit-student-panel').dataset.ringName = ringName;
+            document.getElementById('edit-student-panel').dataset.studentIndex = String(entry.studentIdx);
+            document.getElementById('edit-student-panel').style.display = 'block';
+        }
+
+        function cancelStudentEdit() {
+            const panel = document.getElementById('edit-student-panel');
+            if (panel) panel.style.display = 'none';
+        }
+
+        async function saveStudentEdit() {
+            const panel = document.getElementById('edit-student-panel');
+            const ringName = panel?.dataset?.ringName || '';
+            const idx = Number(panel?.dataset?.studentIndex ?? -1);
+            const studentId = document.getElementById('edit-student-original-id').value;
+
+            const name = document.getElementById('edit-student-name').value.trim();
+            const phone = document.getElementById('edit-student-phone').value.trim();
+            const grade = document.getElementById('edit-student-grade').value.trim();
+            const birthDate = formatBirthDateValue(document.getElementById('edit-student-birth').value.trim()) || null;
+            const status = normalizeStudentStatus(document.getElementById('edit-student-status').value);
+            const paid = document.getElementById('edit-student-paid').value === 'paid';
+
+            if (!name) {
+                alert('يرجى إدخال اسم الطالب.');
+                return;
+            }
+
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const entry = findStudentEntry(rings, ringName, studentId, idx);
+            if (!entry) return;
+
+            if (cloudClient && entry.student.id) {
+                const { error } = await cloudClient
+                    .from('students')
+                    .update({
+                        full_name: name,
+                        guardian_phone: phone || null,
+                        academic_stage: grade || null,
+                        birth_date: birthDate,
+                        status_color: statusToCloudColor(status)
+                    })
+                    .eq('id', String(entry.student.id));
+
+                if (error) {
+                    alert(error.message || 'تعذر تحديث بيانات الطالب في السحابة.');
+                    return;
+                }
+            }
+
+            entry.student.name = name;
+            entry.student.parentPhone = phone;
+            entry.student.grade = grade;
+            entry.student.birthDate = birthDate || '';
+            entry.student.status = status;
+            entry.student.paid = paid;
+
+            localStorage.setItem('mamma_rings', JSON.stringify(rings));
+            cancelStudentEdit();
+            refreshActiveViewsForRing(ringName);
+            updatePaymentStatsBox(ringName);
+            alert('تم حفظ تعديلات الطالب بنجاح.');
+        }
+
+        async function transferStudentToAnotherRing(encodedRing, encodedId, idx) {
+            const sourceRingName = decodeURIComponent(encodedRing);
+            const studentId = decodeURIComponent(encodedId);
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const entry = findStudentEntry(rings, sourceRingName, studentId, idx);
+            if (!entry) return;
+
+            const targetCandidates = rings.filter(r => r && r.name && r.name !== sourceRingName);
+            if (targetCandidates.length === 0) {
+                alert('لا توجد حلقات أخرى متاحة للنقل إليها.');
+                return;
+            }
+
+            const menuText = targetCandidates.map((r, i) => `${i + 1} - ${r.name}`).join('\n');
+            const choice = prompt(`اختر رقم الحلقة المراد نقل الطالب (${entry.student.name}) إليها:\n\n${menuText}`);
+            if (choice === null) return;
+
+            const chosenNum = Number(choice.trim());
+            const targetRing = targetCandidates[chosenNum - 1] || targetCandidates.find(r => r.name === choice.trim());
+            if (!targetRing) {
+                alert('اختيار الحلقة غير صحيح.');
+                return;
+            }
+
+            if (cloudClient && entry.student.id && targetRing.id) {
+                const { error } = await cloudClient
+                    .from('students')
+                    .update({ halaqa_id: targetRing.id })
+                    .eq('id', String(entry.student.id));
+
+                if (error) {
+                    alert(error.message || 'تعذر نقل الطالب في السحابة.');
+                    return;
+                }
+            }
+
+            const [movedStudent] = entry.ring.studentsData.splice(entry.studentIdx, 1);
+            if (!Array.isArray(targetRing.studentsData)) targetRing.studentsData = [];
+            targetRing.studentsData.push(movedStudent);
+
+            localStorage.setItem('mamma_rings', JSON.stringify(rings));
+            refreshActiveViewsForRing(sourceRingName);
+            refreshActiveViewsForRing(targetRing.name);
+            alert(`تم نقل الطالب (${movedStudent.name}) إلى حلقة (${targetRing.name}) بنجاح.`);
+        }
+
+        async function deleteStudentRecord(encodedRing, encodedId, idx) {
+            const ringName = decodeURIComponent(encodedRing);
+            const studentId = decodeURIComponent(encodedId);
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const entry = findStudentEntry(rings, ringName, studentId, idx);
+            if (!entry) return;
+
+            const ok = confirm(`هل أنت متأكد من حذف الطالب (${entry.student.name}) نهائياً؟`);
+            if (!ok) return;
+
+            if (cloudClient && entry.student.id) {
+                const { error } = await cloudClient
+                    .from('students')
+                    .delete()
+                    .eq('id', String(entry.student.id));
+
+                if (error) {
+                    alert(error.message || 'تعذر حذف الطالب من السحابة.');
+                    return;
+                }
+            }
+
+            entry.ring.studentsData.splice(entry.studentIdx, 1);
+            localStorage.setItem('mamma_rings', JSON.stringify(rings));
+            refreshActiveViewsForRing(ringName);
+            alert('تم حذف الطالب بنجاح.');
         }
 
         async function saveAttendanceChanges() {
