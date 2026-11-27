@@ -548,6 +548,80 @@
             });
         }
 
+        async function insertStudentToCloud({ name, halaqaId, phone, grade, birthDate }) {
+            const cleanBirth = formatBirthDateValue(birthDate) || null;
+            const cleanPhone = phone || null;
+            const cleanGrade = grade || null;
+
+            const candidateMethods = [
+                'supervisorCreateStudent',
+                'createStudent',
+                'addStudent',
+                'insertStudent'
+            ];
+
+            if (cloudStorage) {
+                for (const fnName of candidateMethods) {
+                    if (typeof cloudStorage[fnName] === 'function') {
+                        const res = await cloudStorage[fnName]({
+                            fullName: name,
+                            full_name: name,
+                            halaqaId: halaqaId,
+                            halaqa_id: halaqaId,
+                            guardianPhone: cleanPhone,
+                            guardian_phone: cleanPhone,
+                            academicStage: cleanGrade,
+                            academic_stage: cleanGrade,
+                            birthDate: cleanBirth,
+                            birth_date: cleanBirth,
+                            points: 0,
+                            statusColor: 'green',
+                            status_color: 'green'
+                        });
+                        return res?.id || res?.data?.id || null;
+                    }
+                }
+            }
+
+            if (cloudClient) {
+                const insertPayload = {
+                    full_name: name,
+                    halaqa_id: halaqaId,
+                    guardian_phone: cleanPhone,
+                    academic_stage: cleanGrade,
+                    birth_date: cleanBirth,
+                    points: 0,
+                    status_color: 'green'
+                };
+
+                const { data, error } = await cloudClient
+                    .from('students')
+                    .insert([insertPayload])
+                    .select('id')
+                    .single();
+
+                if (error) {
+                    const fallbackPayload = {
+                        full_name: name,
+                        halaqa_id: halaqaId,
+                        guardian_phone: cleanPhone,
+                        birth_date: cleanBirth
+                    };
+                    const retry = await cloudClient
+                        .from('students')
+                        .insert([fallbackPayload])
+                        .select('id')
+                        .single();
+                    if (retry.error) throw error;
+                    return retry.data?.id || null;
+                }
+
+                return data?.id || null;
+            }
+
+            return null;
+        }
+
         async function createSingleStudentRecord({ name, ringName, phone, grade, birthDate }) {
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
             const cleanRingName = String(ringName || '').trim();
@@ -563,19 +637,14 @@
             const cleanBirth = formatBirthDateValue(birthDate) || null;
             let createdId = null;
 
-            if (cloudStorage && ring.id) {
-                const payload = {
-                    fullName: name,
+            if (ring.id) {
+                createdId = await insertStudentToCloud({
+                    name,
                     halaqaId: ring.id,
-                    guardianPhone: phone || null,
-                    academicStage: grade || null,
-                    birthDate: cleanBirth,
-                    birth_date: cleanBirth,
-                    points: 0,
-                    statusColor: 'green'
-                };
-                const created = await cloudStorage.supervisorCreateStudent(payload);
-                createdId = created?.id || null;
+                    phone,
+                    grade,
+                    birthDate: cleanBirth
+                });
             }
 
             if (!Array.isArray(ring.studentsData)) ring.studentsData = [];
