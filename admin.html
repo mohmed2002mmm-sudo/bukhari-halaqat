@@ -108,6 +108,18 @@
 
         .actions-cell { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
+        .points-badge {
+            display: inline-block;
+            background: var(--accent);
+            color: var(--primary);
+            font-weight: 900;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.92rem;
+            min-width: 55px;
+            text-align: center;
+        }
+
         .whatsapp-btn {
             background-color: #25d366;
             color: white;
@@ -151,6 +163,13 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .term-reset-note {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 14px;
+            line-height: 1.7;
         }
     </style>
 
@@ -399,6 +418,47 @@
             </div>
         </div>
 
+        <!-- النقاط: إضافة نقاط، خصم نقاط، مجموع النقاط، حفظ، وتصفير النقاط -->
+        <div class="card">
+            <h3><i class="fa-solid fa-star"></i> النقاط</h3>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>اختر الحلقة</label>
+                    <select id="points-ring-select" class="form-control" onchange="loadStudentsPointsTable()">
+                        <option value="">-- اختر الحلقة --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>مقدار النقاط الافتراضي للزر السريع</label>
+                    <input type="number" id="points-step-input" class="form-control" value="1" min="1" step="1">
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>اسم الطالب</th>
+                            <th>مجموع النقاط</th>
+                            <th>إضافة / خصم وتصفير</th>
+                        </tr>
+                    </thead>
+                    <tbody id="students-points-body">
+                        <tr><td colspan="3" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض نقاط الطلاب.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-success" onclick="saveStudentsPointsChanges()">
+                    <i class="fa-solid fa-floppy-disk"></i> حفظ
+                </button>
+                <button type="button" class="btn btn-danger" onclick="resetRingStudentsPoints()">
+                    <i class="fa-solid fa-rotate-left"></i> تصفير النقاط
+                </button>
+            </div>
+        </div>
+
         <!-- رسائل المعلمين والمشرفين والرد عليها -->
         <div class="card">
             <h3><i class="fa-solid fa-envelope"></i> رسائل المعلمين والمشرفين والرد عليها</h3>
@@ -417,11 +477,23 @@
             </table>
         </div>
 
+        <!-- بداية ترم جديد -->
+        <div class="card">
+            <h3><i class="fa-solid fa-calendar-plus"></i> بداية ترم جديد</h3>
+            <p class="term-reset-note">
+                عند الضغط على <strong>بداية ترم جديد</strong> سيتم تحميل نسخة إكسل احتياطية تلقائياً قبل التصفير، ثم تصفير: النقاط، الغياب والتأخير، حالة السداد، ونسب التسديد لجميع الطلاب في جميع الحلقات.
+            </p>
+            <button type="button" id="start-new-term-btn" class="btn btn-danger" onclick="startNewTerm()">
+                <i class="fa-solid fa-rotate"></i> بداية ترم جديد
+            </button>
+        </div>
+
     </div>
 
     <script>
         let cloudStorage = null;
         let cloudClient = null;
+        let draftPointsByRing = {};
 
         function getSupabaseClient() {
             if (window.bukhariSupabase) return window.bukhariSupabase;
@@ -608,7 +680,7 @@
                                 absentDays: Number(prevSt.absentDays || 0),
                                 lastAttendanceDate: prevSt.lastAttendanceDate || '',
                                 paid: Boolean(prevSt.paid),
-                                points: Number(s.points || prevSt.points || 0),
+                                points: Number(s.points ?? prevSt.points ?? 0),
                                 status: s.status_color ? cloudColorToArStatus(s.status_color) : (prevSt.status || 'أخضر')
                             };
                         });
@@ -712,31 +784,21 @@
             const newRingSel = document.getElementById('new-student-ring');
             const attRingSel = document.getElementById('attendance-ring-select');
             const dataRingSel = document.getElementById('students-data-ring-select');
+            const ptsRingSel = document.getElementById('points-ring-select');
 
-            if (newRingSel) newRingSel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
-            if (attRingSel) attRingSel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
-            if (dataRingSel) dataRingSel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+            [newRingSel, attRingSel, dataRingSel, ptsRingSel].forEach(sel => {
+                if (sel) sel.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+            });
 
             rings.forEach(r => {
                 if (!r || !r.name) return;
-                if (newRingSel) {
-                    const o1 = document.createElement('option');
-                    o1.value = r.name;
-                    o1.textContent = r.name;
-                    newRingSel.appendChild(o1);
-                }
-                if (attRingSel) {
-                    const o2 = document.createElement('option');
-                    o2.value = r.name;
-                    o2.textContent = r.name;
-                    attRingSel.appendChild(o2);
-                }
-                if (dataRingSel) {
-                    const o3 = document.createElement('option');
-                    o3.value = r.name;
-                    o3.textContent = r.name;
-                    dataRingSel.appendChild(o3);
-                }
+                [newRingSel, attRingSel, dataRingSel, ptsRingSel].forEach(sel => {
+                    if (!sel) return;
+                    const opt = document.createElement('option');
+                    opt.value = r.name;
+                    opt.textContent = r.name;
+                    sel.appendChild(opt);
+                });
             });
         }
 
@@ -746,6 +808,10 @@
             }
             if (document.getElementById('students-data-ring-select').value === ringName) {
                 loadStudentsManagementTable();
+            }
+            if (document.getElementById('points-ring-select').value === ringName) {
+                delete draftPointsByRing[ringName];
+                loadStudentsPointsTable();
             }
         }
 
@@ -997,6 +1063,12 @@
 
                 const dataRing = document.getElementById('students-data-ring-select').value;
                 if (dataRing) loadStudentsManagementTable();
+
+                const ptsRing = document.getElementById('points-ring-select').value;
+                if (ptsRing) {
+                    delete draftPointsByRing[ptsRing];
+                    loadStudentsPointsTable();
+                }
 
                 let summaryMsg = `تمت إضافة (${addedCount}) طالب بنجاح من ملف الإكسل.`;
                 if (skippedReasons.length > 0) {
@@ -1341,6 +1413,276 @@
             localStorage.setItem('mamma_rings', JSON.stringify(rings));
             refreshActiveViewsForRing(ringName);
             alert('تم حذف الطالب بنجاح.');
+        }
+
+        function ensureRingPointsDraft(ringName) {
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const ring = rings.find(r => r.name === ringName);
+            const students = (ring && Array.isArray(ring.studentsData)) ? ring.studentsData : [];
+
+            if (!draftPointsByRing[ringName]) {
+                const map = {};
+                students.forEach((st, idx) => {
+                    const key = String(st.id || `idx_${idx}`);
+                    map[key] = Number(st.points || 0);
+                });
+                draftPointsByRing[ringName] = map;
+            }
+            return { students, map: draftPointsByRing[ringName] };
+        }
+
+        function getPointsStepAmount() {
+            const raw = Number(document.getElementById('points-step-input')?.value);
+            return (!Number.isNaN(raw) && raw > 0) ? Math.floor(raw) : 1;
+        }
+
+        function loadStudentsPointsTable() {
+            const ringName = document.getElementById('points-ring-select').value;
+            const tbody = document.getElementById('students-points-body');
+
+            if (!ringName) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">يرجى اختيار الحلقة لعرض نقاط الطلاب.</td></tr>`;
+                return;
+            }
+
+            const { students, map } = ensureRingPointsDraft(ringName);
+
+            if (students.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--gray);">لا يوجد طلاب في هذه الحلقة.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            students.forEach((st, idx) => {
+                const key = String(st.id || `idx_${idx}`);
+                const currentPoints = Number(map[key] ?? st.points ?? 0);
+                const encodedRing = encodeURIComponent(String(ringName));
+                const encodedKey = encodeURIComponent(key);
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(st.name || '')}</strong></td>
+                    <td><span id="pts-val-${idx}" class="points-badge">${currentPoints}</span></td>
+                    <td>
+                        <div class="actions-cell">
+                            <button type="button" class="btn btn-success btn-sm" onclick="adjustStudentDraftPoints('${encodedRing}', '${encodedKey}', ${idx}, 'add')">
+                                <i class="fa-solid fa-plus"></i> إضافة نقاط
+                            </button>
+                            <button type="button" class="btn btn-warning btn-sm" onclick="adjustStudentDraftPoints('${encodedRing}', '${encodedKey}', ${idx}, 'subtract')">
+                                <i class="fa-solid fa-minus"></i> خصم نقاط
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function adjustStudentDraftPoints(encodedRing, encodedKey, idx, mode) {
+            const ringName = decodeURIComponent(encodedRing);
+            const key = decodeURIComponent(encodedKey);
+            const step = getPointsStepAmount();
+            const { map } = ensureRingPointsDraft(ringName);
+
+            const current = Number(map[key] || 0);
+            const nextPoints = mode === 'add'
+                ? current + step
+                : Math.max(0, current - step);
+
+            map[key] = nextPoints;
+            const badge = document.getElementById(`pts-val-${idx}`);
+            if (badge) badge.textContent = String(nextPoints);
+        }
+
+        function resetRingStudentsPoints() {
+            const ringName = document.getElementById('points-ring-select').value;
+            if (!ringName) {
+                alert('يرجى اختيار الحلقة أولاً.');
+                return;
+            }
+
+            const ok = confirm(`هل أنت متأكد من تصفير نقاط جميع طلاب حلقة (${ringName})؟`);
+            if (!ok) return;
+
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const ring = rings.find(r => r.name === ringName);
+            const students = (ring && Array.isArray(ring.studentsData)) ? ring.studentsData : [];
+
+            const zeroMap = {};
+            students.forEach((st, idx) => {
+                const key = String(st.id || `idx_${idx}`);
+                zeroMap[key] = 0;
+            });
+            draftPointsByRing[ringName] = zeroMap;
+            loadStudentsPointsTable();
+        }
+
+        async function saveStudentsPointsChanges() {
+            const ringName = document.getElementById('points-ring-select').value;
+            if (!ringName) {
+                alert('يرجى اختيار الحلقة أولاً.');
+                return;
+            }
+
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            const ring = rings.find(r => r.name === ringName);
+            if (!ring || !Array.isArray(ring.studentsData) || ring.studentsData.length === 0) {
+                alert('لا توجد بيانات طلاب لحفظ نقاطهم.');
+                return;
+            }
+
+            const { map } = ensureRingPointsDraft(ringName);
+            const summaryParts = [];
+
+            for (let idx = 0; idx < ring.studentsData.length; idx++) {
+                const st = ring.studentsData[idx];
+                const key = String(st.id || `idx_${idx}`);
+                const finalPoints = Math.max(0, Number(map[key] ?? st.points ?? 0));
+                st.points = finalPoints;
+                summaryParts.push(`${st.name}: ${finalPoints}`);
+
+                if (cloudClient && st.id) {
+                    const { error } = await cloudClient
+                        .from('students')
+                        .update({ points: finalPoints })
+                        .eq('id', String(st.id));
+                    if (error) {
+                        console.warn('تعذر تحديث نقاط الطالب في السحابة:', error);
+                    }
+                }
+            }
+
+            localStorage.setItem('mamma_rings', JSON.stringify(rings));
+            delete draftPointsByRing[ringName];
+            loadStudentsPointsTable();
+
+            if (typeof syncToCloud === 'function') {
+                syncToCloud(
+                    'تحديث نقاط الطلاب',
+                    getActiveAdminName(),
+                    `الحلقة: ${ringName} | ${summaryParts.join(' - ')}`,
+                    { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.POINTS : undefined }
+                );
+            }
+
+            alert('تم حفظ نقاط الطلاب ومزامنتها بنجاح.');
+        }
+
+        function exportBackupExcelBeforeReset(rings) {
+            if (typeof XLSX === 'undefined') {
+                throw new Error('تعذر تصدير نسخة الإكسل لأن مكتبة SheetJS غير متوفرة.');
+            }
+
+            const rows = [];
+            (rings || []).forEach(r => {
+                if (!r || !Array.isArray(r.studentsData)) return;
+                r.studentsData.forEach(st => {
+                    rows.push({
+                        'رقم الهوية': st.id || '',
+                        'اسم الطالب': st.name || '',
+                        'الحلقة': r.name || '',
+                        'رقم ولي الأمر': st.parentPhone || '',
+                        'المرحلة الدراسية': st.grade || '',
+                        'تاريخ الميلاد': st.birthDate || '',
+                        'حالة الطالب': normalizeStudentStatus(st.status),
+                        'النقاط': Number(st.points || 0),
+                        'أيام الحضور': Number(st.presentDays || 0),
+                        'أيام الغياب': Number(st.absentDays || 0),
+                        'الحالة اليومية': st.attendanceStatus || 'حاضر',
+                        'حالة السداد': st.paid ? 'سدد' : 'لم يتم السداد'
+                    });
+                });
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(rows.length > 0 ? rows : [{
+                'رقم الهوية': '',
+                'اسم الطالب': '',
+                'الحلقة': '',
+                'رقم ولي الأمر': '',
+                'المرحلة الدراسية': '',
+                'تاريخ الميلاد': '',
+                'حالة الطالب': '',
+                'النقاط': 0,
+                'أيام الحضور': 0,
+                'أيام الغياب': 0,
+                'الحالة اليومية': '',
+                'حالة السداد': ''
+            }]);
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'نسخة_قبل_التصفير');
+            XLSX.writeFile(workbook, `نسخة_قبل_التصفير_${getLocalDateKey()}.xlsx`);
+        }
+
+        async function startNewTerm() {
+            const ok = confirm('هل أنت متأكد من بدء ترم جديد؟ سيتم أولاً تحميل نسخة إكسل احتياطية ثم تصفير النقاط والغياب والتأخير والسداد ونسب التسديد لجميع الطلاب.');
+            if (!ok) return;
+
+            const btn = document.getElementById('start-new-term-btn');
+            if (btn) btn.disabled = true;
+
+            try {
+                const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+                exportBackupExcelBeforeReset(rings);
+
+                const studentIds = [];
+
+                rings.forEach(r => {
+                    if (!r || !Array.isArray(r.studentsData)) return;
+                    r.studentsData.forEach(st => {
+                        st.points = 0;
+                        st.absentDays = 0;
+                        st.presentDays = 0;
+                        st.lastAttendanceDate = '';
+                        st.attendanceStatus = 'حاضر';
+                        st.paid = false;
+                        if (st.id !== undefined && st.id !== null && String(st.id).trim() !== '') {
+                            studentIds.push(String(st.id).trim());
+                        }
+                    });
+                });
+
+                localStorage.setItem('mamma_rings', JSON.stringify(rings));
+                localStorage.setItem('mamma_student_attendance', JSON.stringify([]));
+                draftPointsByRing = {};
+
+                if (cloudClient && studentIds.length > 0) {
+                    const uniqueIds = [...new Set(studentIds)];
+                    const { error } = await cloudClient
+                        .from('students')
+                        .update({ points: 0 })
+                        .in('id', uniqueIds);
+
+                    if (error) {
+                        console.warn('تعذر تصفير نقاط الطلاب في السحابة:', error);
+                    }
+                }
+
+                const attRing = document.getElementById('attendance-ring-select').value;
+                updatePaymentStatsBox(attRing);
+                if (attRing) loadStudentsForAttendance();
+
+                const dataRing = document.getElementById('students-data-ring-select').value;
+                if (dataRing) loadStudentsManagementTable();
+
+                const ptsRing = document.getElementById('points-ring-select').value;
+                if (ptsRing) loadStudentsPointsTable();
+
+                if (typeof syncToCloud === 'function') {
+                    syncToCloud(
+                        'بداية ترم جديد',
+                        getActiveAdminName(),
+                        'تم تصدير نسخة إكسل احتياطية وتصفير النقاط والغياب والتأخير والسداد ونسب التسديد لجميع الطلاب.',
+                        { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.POINTS : undefined }
+                    );
+                }
+
+                alert('تم تحميل نسخة الإكسل الاحتياطية وبدء الترم الجديد وتصفير البيانات بنجاح.');
+            } catch (err) {
+                alert(err?.message || 'تعذر إتمام عملية بداية الترم الجديد.');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         }
 
         async function saveAttendanceChanges() {
