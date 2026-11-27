@@ -85,7 +85,8 @@
         .form-control:focus { border-color: var(--secondary); outline: none; }
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        @media(max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        @media(max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
 
         .stats-box {
             background: var(--accent);
@@ -119,9 +120,21 @@
             pointer-events: none;
             opacity: 0.65;
         }
+
+        .excel-hint {
+            margin-top: 12px;
+            background: #f8f9fa;
+            border: 1px dashed #adb5bd;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            color: var(--gray);
+            line-height: 1.7;
+        }
     </style>
 
-<!-- تحميل مكتبة Supabase والملف السحابي -->
+<!-- تحميل مكتبة SheetJS لقراءة ملفات Excel ومكتبة Supabase والملف السحابي -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="storage.js"></script>
@@ -156,7 +169,7 @@
             </div>
         </div>
 
-        <!-- إضافة طالب جديد وربطه بالحلقة -->
+        <!-- إضافة طالب جديد وربطه بالحلقة + استيراد من Excel -->
         <div class="card">
             <h3><i class="fa-solid fa-user-plus"></i> إضافة طالب وربطه بالحلقة</h3>
             <div class="grid-2">
@@ -171,7 +184,7 @@
                     </select>
                 </div>
             </div>
-            <div class="grid-2">
+            <div class="grid-3">
                 <div class="form-group">
                     <label>رقم ولي الأمر (واتساب)</label>
                     <input type="text" id="new-student-phone" class="form-control" placeholder="مثال: 9665XXXXXXXX">
@@ -180,10 +193,31 @@
                     <label>المرحلة الدراسية</label>
                     <input type="text" id="new-student-grade" class="form-control" placeholder="مثال: ابتدائي / متوسط / ثانوي">
                 </div>
+                <div class="form-group">
+                    <label>تاريخ الميلاد</label>
+                    <input type="date" id="new-student-birth" class="form-control">
+                </div>
             </div>
-            <button type="button" class="btn" onclick="addStudentToRing()">
-                <i class="fa-solid fa-plus"></i> حفظ الطالب
-            </button>
+
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                <button type="button" class="btn" onclick="addStudentToRing()">
+                    <i class="fa-solid fa-plus"></i> حفظ الطالب
+                </button>
+                <button type="button" id="excel-import-btn" class="btn btn-info" onclick="triggerExcelImport()">
+                    <i class="fa-solid fa-file-excel"></i> إضافة طلاب من ملف إكسل
+                </button>
+                <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" style="display: none;" onchange="handleExcelFileSelected(event)">
+            </div>
+
+            <div class="excel-hint">
+                <strong>ترتيب أعمدة ملف الإكسل المطلوب:</strong>
+                <strong>A</strong>: اسم الطالب |
+                <strong>B</strong>: الحلقة |
+                <strong>C</strong>: رقم ولي الأمر |
+                <strong>D</strong>: المرحلة الدراسية |
+                <strong>E</strong>: (غير مستخدم) |
+                <strong>F</strong>: تاريخ الميلاد
+            </div>
         </div>
 
         <!-- التحضير وإشعارات الواتساب -->
@@ -280,6 +314,44 @@
             return `${year}-${month}-${day}`;
         }
 
+        function formatBirthDateValue(rawVal) {
+            if (rawVal === undefined || rawVal === null || rawVal === '') return '';
+
+            if (typeof rawVal === 'number' && !Number.isNaN(rawVal)) {
+                if (window.XLSX && window.XLSX.SSF && typeof window.XLSX.SSF.parse_date_code === 'function') {
+                    const parsed = window.XLSX.SSF.parse_date_code(rawVal);
+                    if (parsed && parsed.y && parsed.m && parsed.d) {
+                        const y = String(parsed.y).padStart(4, '0');
+                        const m = String(parsed.m).padStart(2, '0');
+                        const d = String(parsed.d).padStart(2, '0');
+                        return `${y}-${m}-${d}`;
+                    }
+                }
+            }
+
+            if (rawVal instanceof Date && !Number.isNaN(rawVal.getTime())) {
+                const y = rawVal.getFullYear();
+                const m = String(rawVal.getMonth() + 1).padStart(2, '0');
+                const d = String(rawVal.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+
+            const str = String(rawVal).trim();
+            if (!str) return '';
+
+            const isoMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+            if (isoMatch) {
+                return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+            }
+
+            const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (dmyMatch) {
+                return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
+            }
+
+            return str;
+        }
+
         function escapeHtml(text) {
             return String(text || '')
                 .replace(/&/g, '&amp;')
@@ -346,6 +418,7 @@
                                 name: s.full_name,
                                 parentPhone: s.guardian_phone || prevSt.parentPhone || '',
                                 grade: s.academic_stage || prevSt.grade || '',
+                                birthDate: s.birth_date || prevSt.birthDate || '',
                                 attendanceStatus: prevSt.attendanceStatus || 'حاضر',
                                 presentDays: Number(prevSt.presentDays || 0),
                                 absentDays: Number(prevSt.absentDays || 0),
@@ -475,48 +548,43 @@
             });
         }
 
-        async function addStudentToRing() {
-            const name = document.getElementById('new-student-name').value.trim();
-            const ringName = document.getElementById('new-student-ring').value.trim();
-            const phone = document.getElementById('new-student-phone').value.trim();
-            const grade = document.getElementById('new-student-grade').value.trim();
-
-            if (!name || !ringName) {
-                alert('يرجى إدخال اسم الطالب واختيار الحلقة.');
-                return;
-            }
-
+        async function createSingleStudentRecord({ name, ringName, phone, grade, birthDate }) {
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
-            const ring = rings.find(r => r.name === ringName);
+            const cleanRingName = String(ringName || '').trim();
+            const ring = rings.find(r =>
+                String(r.name || '').trim() === cleanRingName ||
+                String(r.id || '') === cleanRingName
+            );
+
             if (!ring) {
-                alert('الحلقة المختارة غير موجودة.');
-                return;
+                throw new Error(`الحلقة (${cleanRingName}) غير موجودة.`);
             }
 
+            const cleanBirth = formatBirthDateValue(birthDate) || null;
             let createdId = null;
+
             if (cloudStorage && ring.id) {
-                try {
-                    const created = await cloudStorage.supervisorCreateStudent({
-                        fullName: name,
-                        halaqaId: ring.id,
-                        guardianPhone: phone || null,
-                        academicStage: grade || null,
-                        points: 0,
-                        statusColor: 'green'
-                    });
-                    createdId = created?.id || null;
-                } catch (err) {
-                    alert(err?.message || 'تعذر إضافة الطالب في السحابة.');
-                    return;
-                }
+                const payload = {
+                    fullName: name,
+                    halaqaId: ring.id,
+                    guardianPhone: phone || null,
+                    academicStage: grade || null,
+                    birthDate: cleanBirth,
+                    birth_date: cleanBirth,
+                    points: 0,
+                    statusColor: 'green'
+                };
+                const created = await cloudStorage.supervisorCreateStudent(payload);
+                createdId = created?.id || null;
             }
 
             if (!Array.isArray(ring.studentsData)) ring.studentsData = [];
             ring.studentsData.push({
                 id: createdId,
                 name,
-                parentPhone: phone,
-                grade,
+                parentPhone: phone || '',
+                grade: grade || '',
+                birthDate: cleanBirth || '',
                 attendanceStatus: 'حاضر',
                 presentDays: 0,
                 absentDays: 0,
@@ -532,19 +600,139 @@
                 syncToCloud(
                     'إضافة طالب',
                     getActiveAdminName(),
-                    `الطالب: ${name} | الحلقة: ${ringName} | الجوال: ${phone || '-'}`,
+                    `الطالب: ${name} | الحلقة: ${ring.name} | الجوال: ${phone || '-'} | المرحلة: ${grade || '-'} | الميلاد: ${cleanBirth || '-'}`,
                     { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STUDENTS : undefined }
                 );
             }
 
-            document.getElementById('new-student-name').value = '';
-            document.getElementById('new-student-phone').value = '';
-            document.getElementById('new-student-grade').value = '';
+            return ring.name;
+        }
 
-            if (document.getElementById('attendance-ring-select').value === ringName) {
-                loadStudentsForAttendance();
+        async function addStudentToRing() {
+            const name = document.getElementById('new-student-name').value.trim();
+            const ringName = document.getElementById('new-student-ring').value.trim();
+            const phone = document.getElementById('new-student-phone').value.trim();
+            const grade = document.getElementById('new-student-grade').value.trim();
+            const birthDate = document.getElementById('new-student-birth').value.trim();
+
+            if (!name || !ringName) {
+                alert('يرجى إدخال اسم الطالب واختيار الحلقة.');
+                return;
             }
-            alert(`تمت إضافة الطالب (${name}) إلى حلقة (${ringName}) بنجاح.`);
+
+            try {
+                const resolvedRingName = await createSingleStudentRecord({
+                    name,
+                    ringName,
+                    phone,
+                    grade,
+                    birthDate
+                });
+
+                document.getElementById('new-student-name').value = '';
+                document.getElementById('new-student-phone').value = '';
+                document.getElementById('new-student-grade').value = '';
+                document.getElementById('new-student-birth').value = '';
+
+                if (document.getElementById('attendance-ring-select').value === resolvedRingName) {
+                    loadStudentsForAttendance();
+                }
+                alert(`تمت إضافة الطالب (${name}) إلى حلقة (${resolvedRingName}) بنجاح.`);
+            } catch (err) {
+                alert(err?.message || 'تعذر إضافة الطالب.');
+            }
+        }
+
+        function triggerExcelImport() {
+            const input = document.getElementById('excel-file-input');
+            if (!input) return;
+            input.value = '';
+            input.click();
+        }
+
+        function isHeaderRow(row) {
+            const a = String(row?.[0] ?? '').trim().toLowerCase();
+            const b = String(row?.[1] ?? '').trim().toLowerCase();
+            return (
+                a.includes('اسم') || a === 'name' || a === 'student' ||
+                b.includes('حلقة') || b === 'ring' || b === 'halaqa'
+            );
+        }
+
+        async function handleExcelFileSelected(event) {
+            const file = event?.target?.files?.[0];
+            if (!file) return;
+
+            const importBtn = document.getElementById('excel-import-btn');
+            if (importBtn) importBtn.disabled = true;
+
+            try {
+                if (typeof XLSX === 'undefined') {
+                    throw new Error('تعذر تحميل مكتبة قراءة ملفات الإكسل. تحقق من اتصال الإنترنت وأعد المحاولة.');
+                }
+
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[firstSheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+                if (!Array.isArray(rows) || rows.length === 0) {
+                    alert('الملف فارغ ولا يحتوي على بيانات طلاب.');
+                    return;
+                }
+
+                let addedCount = 0;
+                const skippedReasons = [];
+
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!Array.isArray(row)) continue;
+
+                    const colA = String(row[0] ?? '').trim(); // A: اسم الطالب
+                    const colB = String(row[1] ?? '').trim(); // B: الحلقة
+                    const colC = String(row[2] ?? '').trim(); // C: رقم ولي الأمر
+                    const colD = String(row[3] ?? '').trim(); // D: المرحلة الدراسية
+                    // العمود E (row[4]) متروك حسب التحديد
+                    const colF = row[5];                        // F: تاريخ الميلاد
+
+                    if (!colA && !colB && !colC && !colD && !colF) continue;
+                    if (i === 0 && isHeaderRow(row)) continue;
+
+                    if (!colA || !colB) {
+                        skippedReasons.push(`صف ${i + 1}: نقص اسم الطالب أو اسم الحلقة.`);
+                        continue;
+                    }
+
+                    try {
+                        await createSingleStudentRecord({
+                            name: colA,
+                            ringName: colB,
+                            phone: colC,
+                            grade: colD,
+                            birthDate: colF
+                        });
+                        addedCount++;
+                    } catch (rowErr) {
+                        skippedReasons.push(`صف ${i + 1} (${colA}): ${rowErr?.message || 'خطأ في الإضافة'}`);
+                    }
+                }
+
+                const selectedRing = document.getElementById('attendance-ring-select').value;
+                if (selectedRing) {
+                    loadStudentsForAttendance();
+                }
+
+                let summaryMsg = `تمت إضافة (${addedCount}) طالب بنجاح من ملف الإكسل.`;
+                if (skippedReasons.length > 0) {
+                    summaryMsg += `\n\nتنبيه ببعض الصفوف غير المضافة (${skippedReasons.length}):\n` + skippedReasons.slice(0, 8).join('\n');
+                }
+                alert(summaryMsg);
+            } catch (err) {
+                alert(err?.message || 'حدث خطأ أثناء قراءة ملف الإكسل.');
+            } finally {
+                if (importBtn) importBtn.disabled = false;
+            }
         }
 
         function updatePaymentStatsBox(ringName) {
