@@ -172,7 +172,11 @@
         <!-- إضافة طالب جديد وربطه بالحلقة + استيراد من Excel -->
         <div class="card">
             <h3><i class="fa-solid fa-user-plus"></i> إضافة طالب وربطه بالحلقة</h3>
-            <div class="grid-2">
+            <div class="grid-3">
+                <div class="form-group">
+                    <label>رقم هوية الطالب (فريد)</label>
+                    <input type="text" id="new-student-id" class="form-control" placeholder="مثال: 10XXXXXXXX">
+                </div>
                 <div class="form-group">
                     <label>اسم الطالب</label>
                     <input type="text" id="new-student-name" class="form-control" placeholder="الاسم الكامل للطالب">
@@ -314,6 +318,22 @@
             return `${year}-${month}-${day}`;
         }
 
+        function generateUniqueStudentId() {
+            const stamp = Date.now().toString(36).toUpperCase();
+            const rand = Math.floor(1000 + Math.random() * 9000);
+            return `STD-${stamp}-${rand}`;
+        }
+
+        function isDuplicateStudentId(studentId) {
+            const target = String(studentId || '').trim().toLowerCase();
+            if (!target) return false;
+            const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
+            return rings.some(r =>
+                Array.isArray(r.studentsData) &&
+                r.studentsData.some(st => String(st.id || '').trim().toLowerCase() === target)
+            );
+        }
+
         function formatBirthDateValue(rawVal) {
             if (rawVal === undefined || rawVal === null || rawVal === '') return '';
 
@@ -388,11 +408,12 @@
         async function syncRingsAndStudentsFromCloud() {
             if (!cloudStorage || !cloudClient) return false;
             try {
-                const [{ data: halaqatRows, error: hErr }, studentsRows] = await Promise.all([
+                const [{ data: halaqatRows, error: hErr }, { data: studentsRows, error: sErr }] = await Promise.all([
                     cloudClient.from('halaqat').select('id, name').order('name', { ascending: true }),
-                    cloudStorage.supervisorListStudents()
+                    cloudClient.from('students').select('id, full_name, halaqa_id, guardian_phone, academic_stage, birth_date, points')
                 ]);
                 if (hErr) throw hErr;
+                if (sErr) throw sErr;
 
                 const existingRings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
                 const prevById = {};
@@ -548,43 +569,28 @@
             });
         }
 
-        async function insertStudentToCloud({ name, halaqaId, phone, grade, birthDate }) {
+        async function insertStudentToCloud({ studentId, name, halaqaId, phone, grade, birthDate }) {
+            const cleanId = String(studentId || '').trim();
             const cleanBirth = formatBirthDateValue(birthDate) || null;
             const cleanPhone = phone || null;
             const cleanGrade = grade || null;
 
-            const candidateMethods = [
-                'supervisorCreateStudent',
-                'createStudent',
-                'addStudent',
-                'insertStudent'
-            ];
-
-            if (cloudStorage) {
-                for (const fnName of candidateMethods) {
-                    if (typeof cloudStorage[fnName] === 'function') {
-                        const res = await cloudStorage[fnName]({
-                            fullName: name,
-                            full_name: name,
-                            halaqaId: halaqaId,
-                            halaqa_id: halaqaId,
-                            guardianPhone: cleanPhone,
-                            guardian_phone: cleanPhone,
-                            academicStage: cleanGrade,
-                            academic_stage: cleanGrade,
-                            birthDate: cleanBirth,
-                            birth_date: cleanBirth,
-                            points: 0,
-                            statusColor: 'green',
-                            status_color: 'green'
-                        });
-                        return res?.id || res?.data?.id || null;
-                    }
-                }
-            }
-
             if (cloudClient) {
+                const { data: existing, error: checkErr } = await cloudClient
+                    .from('students')
+                    .select('id')
+                    .eq('id', cleanId)
+                    .maybeSingle();
+
+                if (checkErr && checkErr.code !== 'PGRST116') {
+                    throw checkErr;
+                }
+                if (existing && existing.id) {
+                    throw new Error(`رقم الهوية (${cleanId}) مسجل مسبقاً لطالب آخر.`);
+                }
+
                 const insertPayload = {
+                    id: cleanId,
                     full_name: name,
                     halaqa_id: halaqaId,
                     guardian_phone: cleanPhone,
@@ -601,7 +607,11 @@
                     .single();
 
                 if (error) {
+                    if (error.code === '23505') {
+                        throw new Error(`رقم الهوية (${cleanId}) مكرر في قاعدة البيانات.`);
+                    }
                     const fallbackPayload = {
+                        id: cleanId,
                         full_name: name,
                         halaqa_id: halaqaId,
                         guardian_phone: cleanPhone,
@@ -613,16 +623,16 @@
                         .select('id')
                         .single();
                     if (retry.error) throw error;
-                    return retry.data?.id || null;
+                    return retry.data?.id || cleanId;
                 }
 
-                return data?.id || null;
+                return data?.id || cleanId;
             }
 
-            return null;
+            return cleanId;
         }
 
-        async function createSingleStudentRecord({ name, ringName, phone, grade, birthDate }) {
+        async function createSingleStudentRecord({ studentId, name, ringName, phone, grade, birthDate }) {
             const rings = JSON.parse(localStorage.getItem('mamma_rings') || '[]');
             const cleanRingName = String(ringName || '').trim();
             const ring = rings.find(r =>
@@ -634,11 +644,17 @@
                 throw new Error(`الحلقة (${cleanRingName}) غير موجودة.`);
             }
 
+            const finalId = String(studentId || '').trim() || generateUniqueStudentId();
+            if (isDuplicateStudentId(finalId)) {
+                throw new Error(`رقم الهوية (${finalId}) مستخدم مسبقاً.`);
+            }
+
             const cleanBirth = formatBirthDateValue(birthDate) || null;
-            let createdId = null;
+            let createdId = finalId;
 
             if (ring.id) {
                 createdId = await insertStudentToCloud({
+                    studentId: finalId,
                     name,
                     halaqaId: ring.id,
                     phone,
@@ -669,28 +685,30 @@
                 syncToCloud(
                     'إضافة طالب',
                     getActiveAdminName(),
-                    `الطالب: ${name} | الحلقة: ${ring.name} | الجوال: ${phone || '-'} | المرحلة: ${grade || '-'} | الميلاد: ${cleanBirth || '-'}`,
+                    `الهوية: ${createdId} | الطالب: ${name} | الحلقة: ${ring.name} | الجوال: ${phone || '-'} | المرحلة: ${grade || '-'} | الميلاد: ${cleanBirth || '-'}`,
                     { sheet: typeof SHEETS_12 !== 'undefined' ? SHEETS_12.STUDENTS : undefined }
                 );
             }
 
-            return ring.name;
+            return { ringName: ring.name, studentId: createdId };
         }
 
         async function addStudentToRing() {
+            const studentId = document.getElementById('new-student-id').value.trim();
             const name = document.getElementById('new-student-name').value.trim();
             const ringName = document.getElementById('new-student-ring').value.trim();
             const phone = document.getElementById('new-student-phone').value.trim();
             const grade = document.getElementById('new-student-grade').value.trim();
             const birthDate = document.getElementById('new-student-birth').value.trim();
 
-            if (!name || !ringName) {
-                alert('يرجى إدخال اسم الطالب واختيار الحلقة.');
+            if (!studentId || !name || !ringName) {
+                alert('يرجى إدخال رقم هوية الطالب واسم الطالب واختيار الحلقة.');
                 return;
             }
 
             try {
-                const resolvedRingName = await createSingleStudentRecord({
+                const res = await createSingleStudentRecord({
+                    studentId,
                     name,
                     ringName,
                     phone,
@@ -698,15 +716,16 @@
                     birthDate
                 });
 
+                document.getElementById('new-student-id').value = '';
                 document.getElementById('new-student-name').value = '';
                 document.getElementById('new-student-phone').value = '';
                 document.getElementById('new-student-grade').value = '';
                 document.getElementById('new-student-birth').value = '';
 
-                if (document.getElementById('attendance-ring-select').value === resolvedRingName) {
+                if (document.getElementById('attendance-ring-select').value === res.ringName) {
                     loadStudentsForAttendance();
                 }
-                alert(`تمت إضافة الطالب (${name}) إلى حلقة (${resolvedRingName}) بنجاح.`);
+                alert(`تمت إضافة الطالب (${name}) بهوية فريدة (${res.studentId}) إلى حلقة (${res.ringName}) بنجاح.`);
             } catch (err) {
                 alert(err?.message || 'تعذر إضافة الطالب.');
             }
@@ -775,6 +794,7 @@
 
                     try {
                         await createSingleStudentRecord({
+                            studentId: generateUniqueStudentId(),
                             name: colA,
                             ringName: colB,
                             phone: colC,
